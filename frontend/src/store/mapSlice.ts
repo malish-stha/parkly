@@ -33,7 +33,7 @@ interface MapState {
 }
 
 const initialState: MapState = {
-  searchCenter: { lat: 40.7128, lng: -74.0060 }, // Default NYC Center
+  searchCenter: { lat: 27.7172, lng: 85.3240 }, // Default Kathmandu, Nepal Center
   selectedGarage: null,
   garagesList: [],
   activeRoute: null,

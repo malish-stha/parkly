@@ -1,65 +1,66 @@
-import Image from "next/image";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="container mx-auto flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold tracking-tight text-primary">Parkly</span>
+          </div>
+          <nav className="flex items-center gap-6">
+            <ThemeToggle />
+          </nav>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* Hero Section */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-foreground">
+            Smart Parking, <span className="text-primary">Effortless Reservation</span>
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-xl mx-auto">
+            Find and book compatible spots in seconds. Enforce timers, check routes, and pay securely.
+          </p>
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <button className="h-11 px-6 rounded-md bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+              Find a Spot
+            </button>
+            <button className="h-11 px-6 rounded-md border border-input bg-background font-semibold hover:bg-muted transition-colors cursor-pointer">
+              Register Garage
+            </button>
+          </div>
+        </div>
+
+        {/* Feature Cards Grid (Checking theme variables) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mt-20 px-4">
+          <div className="rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+            <h3 className="text-lg font-bold text-foreground">AI Slot Finder</h3>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Use natural language queries to immediately locate nearby EV, SUV, or standard spaces.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+            <h3 className="text-lg font-bold text-foreground">Stripe Integration</h3>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Secures booking locks with a 15-minute countdown clock and automatic release timers.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+            <h3 className="text-lg font-bold text-foreground">OSRM Map Routing</h3>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Displays the shortest road distance and estimated driving time directly on Leaflet map.
+            </p>
+          </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-6 px-6 text-center text-sm text-muted-foreground">
+        <p>© 2026 Parkly Inc. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
