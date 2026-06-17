@@ -1,0 +1,16 @@
+# Maven build target directory
+target/
+**/target/
+
+# IDE configurations (IntelliJ, Eclipse, VS Code)
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.factorypath
+.vscode/
