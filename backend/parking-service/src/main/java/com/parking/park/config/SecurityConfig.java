@@ -6,20 +6,26 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.http.HttpMethod;
 
 import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final UserHeaderFilter userHeaderFilter;
+    private final List<String> allowedOrigins;
 
-    public SecurityConfig(UserHeaderFilter userHeaderFilter) {
+    public SecurityConfig(
+            UserHeaderFilter userHeaderFilter,
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.userHeaderFilter = userHeaderFilter;
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Bean
@@ -40,7 +46,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOrigins(Collections.singletonList("http://localhost:3000"));
+        corsConfig.setAllowedOrigins(allowedOrigins);
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Collections.singletonList("*"));
         corsConfig.setAllowedHeaders(Collections.singletonList("*"));
