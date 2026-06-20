@@ -33,7 +33,7 @@ public class Garage {
     @Column(name = "owner_id", nullable = false)
     private String ownerId;
 
-    @OneToMany(mappedBy = "garage", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "garage", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ParkingSpot> spots = new ArrayList<>();
 
     public Garage() {}

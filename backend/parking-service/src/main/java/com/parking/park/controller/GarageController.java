@@ -2,6 +2,7 @@ package com.parking.park.controller;
 
 import com.parking.park.dto.GarageOnboardRequest;
 import com.parking.park.model.Garage;
+import com.parking.park.service.GarageSearchService;
 import com.parking.park.service.GarageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,18 @@ public class GarageController {
 
     @Autowired
     private GarageService garageService;
+
+    @Autowired
+    private GarageSearchService garageSearchService;
+
+    @GetMapping("/search")
+    public ResponseEntity<List<com.parking.park.dto.GarageSearchDto>> searchGarages(
+            @RequestParam double lat,
+            @RequestParam double lng,
+            @RequestParam(defaultValue = "5.0") double radius) {
+        List<com.parking.park.dto.GarageSearchDto> garages = garageSearchService.searchNearbyGarages(lat, lng, radius);
+        return ResponseEntity.ok(garages);
+    }
 
     @PostMapping
     public ResponseEntity<Garage> onboardGarage(

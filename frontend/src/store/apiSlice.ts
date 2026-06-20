@@ -15,6 +15,25 @@ export interface GaragePayload {
   spots: SpotConfig[];
 }
 
+export interface ParkingSpotDto {
+  id: number;
+  spotNumber: string;
+  vehicleType: "STANDARD" | "EV" | "SUV";
+  status: "AVAILABLE" | "PENDING_PAYMENT" | "RESERVED" | "OCCUPIED";
+}
+
+export interface GarageSearchDto {
+  id: number;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  ratePerHour: number;
+  imageUrl: string;
+  ownerId: string;
+  spots: ParkingSpotDto[];
+}
+
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
@@ -33,7 +52,13 @@ export const apiSlice = createApi({
         body: garageData,
       }),
     }),
+    searchGarages: builder.query<GarageSearchDto[], { lat: number; lng: number; radius: number }>({
+      query: ({ lat, lng, radius }) => ({
+        url: `/garages/search?lat=${lat}&lng=${lng}&radius=${radius}`,
+        method: "GET",
+      }),
+    }),
   }),
 })
 
-export const { useCreateGarageMutation } = apiSlice
+export const { useCreateGarageMutation, useSearchGaragesQuery } = apiSlice

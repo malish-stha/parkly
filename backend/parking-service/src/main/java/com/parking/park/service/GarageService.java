@@ -6,6 +6,7 @@ import com.parking.park.model.Garage;
 import com.parking.park.model.ParkingSpot;
 import com.parking.park.repository.GarageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ public class GarageService {
     private GarageRepository garageRepository;
 
     @Transactional
+    @CacheEvict(value = "garagesNearby", allEntries = true)
     public Garage onboardGarage(GarageOnboardRequest request, String ownerId) {
         Garage garage = new Garage(
             request.getName(),
