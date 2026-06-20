@@ -315,9 +315,7 @@ export default function Home() {
         {/* Navigation */}
         <nav className="flex justify-between items-center px-6 md:px-12 py-8 md:py-10 pointer-events-auto">
           <div className="text-xl md:text-2xl font-black flex items-center gap-3 tracking-tighter text-foreground select-none">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/40">
-              <div className="w-1.5 h-4 md:w-2 md:h-5 bg-white rounded-full"></div>
-            </div>
+            <img src="/logo.png" alt="Parkly Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
             PARK<span className="text-primary">LY</span>
           </div>
 
