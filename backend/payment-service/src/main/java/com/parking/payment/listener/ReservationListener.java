@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 @Component
 public class ReservationListener {
@@ -35,20 +34,23 @@ public class ReservationListener {
             java.time.Instant instant = java.time.Instant.parse(payload.getExpiresAt());
             LocalDateTime expiresAt = LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
             
-            // Create a pending booking
+            LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
+
+            // Create a pending booking with matching properties
             Booking booking = new Booking(
                 payload.getUserId(),
                 payload.getGarageId(),
                 payload.getSpotId(),
                 payload.getRatePerHour(),
-                "PENDING",
-                LocalDateTime.now(java.time.ZoneOffset.UTC),
-                expiresAt
+                "PENDING_PAYMENT",
+                now,
+                expiresAt,
+                now
             );
 
             Booking savedBooking = bookingRepository.save(booking);
-            log.info("Registered PENDING booking. ID: {}, Spot ID: {}, Driver ID: {}, Expires At: {}", 
-                     savedBooking.getId(), savedBooking.getSpotId(), savedBooking.getUserId(), savedBooking.getExpiresAt());
+            log.info("Registered PENDING_PAYMENT booking. ID: {}, Spot ID: {}, Driver ID: {}, End Time: {}", 
+                     savedBooking.getId(), savedBooking.getSpotId(), savedBooking.getDriverId(), savedBooking.getEndTime());
         } catch (Exception e) {
             log.error("Failed to process reservation created message: " + message, e);
         }

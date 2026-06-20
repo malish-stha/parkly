@@ -42,9 +42,9 @@ public class BookingController {
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
         }
 
-        if (!"PENDING".equals(booking.getStatus())) {
+        if (!"PENDING_PAYMENT".equals(booking.getStatus())) {
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Booking status is " + booking.getStatus() + ". Can only confirm PENDING bookings.");
+            error.put("message", "Booking status is " + booking.getStatus() + ". Can only confirm PENDING_PAYMENT bookings.");
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
         }
 
@@ -65,7 +65,7 @@ public class BookingController {
         
         log.info("Fetching active booking for user ID: {}", userId);
 
-        List<Booking> activeBookings = bookingRepository.findByUserIdAndStatusIn(userId, List.of("PENDING", "CONFIRMED"));
+        List<Booking> activeBookings = bookingRepository.findByDriverIdAndStatusIn(userId, List.of("PENDING_PAYMENT", "CONFIRMED"));
         if (activeBookings.isEmpty()) {
             return ResponseEntity.ok(new HashMap<>()); // Return empty object if no active bookings
         }

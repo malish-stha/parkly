@@ -10,7 +10,7 @@ import java.util.List;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    List<Booking> findByStatusAndExpiresAtBefore(String status, LocalDateTime now);
-    List<Booking> findByUserIdAndStatusIn(String userId, Collection<String> statuses);
-    List<Booking> findByUserIdAndStatus(String userId, String status);
+    List<Booking> findByStatusAndEndTimeBefore(String status, LocalDateTime now);
+    List<Booking> findByDriverIdAndStatusIn(String driverId, Collection<String> statuses);
+    List<Booking> findByDriverIdAndStatus(String driverId, String status);
 }

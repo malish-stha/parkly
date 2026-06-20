@@ -11,8 +11,8 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private String userId;
+    @Column(name = "driver_id", nullable = false)
+    private String driverId;
 
     @Column(name = "garage_id", nullable = false)
     private Long garageId;
@@ -20,36 +20,40 @@ public class Booking {
     @Column(name = "spot_id", nullable = false)
     private Long spotId;
 
-    @Column(name = "rate_per_hour", nullable = false)
-    private double ratePerHour;
+    @Column(name = "base_amount", nullable = false)
+    private double baseAmount;
 
     @Column(nullable = false)
-    private String status; // "PENDING", "CONFIRMED", "EXPIRED"
+    private String status; // "PENDING_PAYMENT", "CONFIRMED", "CANCELLED"
+
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalDateTime endTime;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
-
     public Booking() {}
 
-    public Booking(String userId, Long garageId, Long spotId, double ratePerHour, String status, LocalDateTime createdAt, LocalDateTime expiresAt) {
-        this.userId = userId;
+    public Booking(String driverId, Long garageId, Long spotId, double baseAmount, String status, LocalDateTime startTime, LocalDateTime endTime, LocalDateTime createdAt) {
+        this.driverId = driverId;
         this.garageId = garageId;
         this.spotId = spotId;
-        this.ratePerHour = ratePerHour;
+        this.baseAmount = baseAmount;
         this.status = status;
+        this.startTime = startTime;
+        this.endTime = endTime;
         this.createdAt = createdAt;
-        this.expiresAt = expiresAt;
     }
 
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public String getDriverId() { return driverId; }
+    public void setDriverId(String driverId) { this.driverId = driverId; }
 
     public Long getGarageId() { return garageId; }
     public void setGarageId(Long garageId) { this.garageId = garageId; }
@@ -57,15 +61,18 @@ public class Booking {
     public Long getSpotId() { return spotId; }
     public void setSpotId(Long spotId) { this.spotId = spotId; }
 
-    public double getRatePerHour() { return ratePerHour; }
-    public void setRatePerHour(double ratePerHour) { this.ratePerHour = ratePerHour; }
+    public double getBaseAmount() { return baseAmount; }
+    public void setBaseAmount(double baseAmount) { this.baseAmount = baseAmount; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+
+    public LocalDateTime getEndTime() { return endTime; }
+    public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 }

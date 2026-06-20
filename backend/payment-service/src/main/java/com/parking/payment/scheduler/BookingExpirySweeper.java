@@ -28,15 +28,15 @@ public class BookingExpirySweeper {
     @Transactional
     public void sweepExpiredBookings() {
         LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
-        List<Booking> expiredBookings = bookingRepository.findByStatusAndExpiresAtBefore("PENDING", now);
+        List<Booking> expiredBookings = bookingRepository.findByStatusAndEndTimeBefore("PENDING_PAYMENT", now);
 
         if (!expiredBookings.isEmpty()) {
             log.info("Found {} expired pending bookings. Processing release...", expiredBookings.size());
             for (Booking booking : expiredBookings) {
-                booking.setStatus("EXPIRED");
+                booking.setStatus("CANCELLED");
                 bookingRepository.save(booking);
 
-                log.info("Booking ID {} set to EXPIRED. Triggering spot release event for Spot ID {}", booking.getId(), booking.getSpotId());
+                log.info("Booking ID {} set to CANCELLED. Triggering spot release event for Spot ID {}", booking.getId(), booking.getSpotId());
                 eventPublisher.publishReservationExpired(booking.getId(), booking.getSpotId(), booking.getGarageId());
             }
         }

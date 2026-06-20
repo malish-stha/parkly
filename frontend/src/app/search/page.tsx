@@ -72,12 +72,12 @@ export default function SearchPage() {
 
   // 1. Initial Page Load / Query response Active Reservation Restore & Sync
   useEffect(() => {
-    if (activeBookingDb && activeBookingDb.status === "PENDING") {
+    if (activeBookingDb && activeBookingDb.status === "PENDING_PAYMENT") {
       const dbBookingId = String(activeBookingDb.id);
       
       // Guard: Do not restore if the expiration time is already in the past relative to the browser clock,
       // or if it is on the verge of expiring (within 2 seconds) to prevent restoration loops.
-      const expiresTime = new Date(activeBookingDb.expiresAt.endsWith('Z') ? activeBookingDb.expiresAt : activeBookingDb.expiresAt + 'Z').getTime();
+      const expiresTime = new Date(activeBookingDb.endTime.endsWith('Z') ? activeBookingDb.endTime : activeBookingDb.endTime + 'Z').getTime();
       const now = new Date().getTime();
       if (expiresTime - now <= 2000) {
         return;
@@ -94,7 +94,7 @@ export default function SearchPage() {
             bookingId: dbBookingId,
             spotId: String(activeBookingDb.spotId),
             garageId: String(activeBookingDb.garageId),
-            expiresAt: activeBookingDb.expiresAt
+            expiresAt: activeBookingDb.endTime
           })
         )
       }

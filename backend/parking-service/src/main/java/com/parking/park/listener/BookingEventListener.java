@@ -38,8 +38,8 @@ public class BookingEventListener {
             }
 
             String eventType = payload.getEventType();
-            if ("EXPIRED".equals(eventType)) {
-                log.info("Processing spot release. Spot ID: {}, Booking ID: {}", spot.getId(), payload.getBookingId());
+            if ("EXPIRED".equals(eventType) || "CANCELLED".equals(eventType)) {
+                log.info("Processing spot release. Spot ID: {}, Booking ID: {}, Event Type: {}", spot.getId(), payload.getBookingId(), eventType);
                 if ("PENDING_PAYMENT".equals(spot.getStatus())) {
                     spot.setStatus("AVAILABLE");
                     spotRepository.save(spot);
