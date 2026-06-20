@@ -37,7 +37,7 @@ export interface GarageSearchDto {
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8080/api/v1",
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
     prepareHeaders: (headers, { endpoint }) => {
       // Relay mock identities based on owner/driver roles until Clerk Auth is loaded
       if (!headers.has("X-User-Id")) {
