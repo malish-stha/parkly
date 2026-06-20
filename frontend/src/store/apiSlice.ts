@@ -38,13 +38,16 @@ export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
-    prepareHeaders: (headers, { endpoint }) => {
-      // Relay mock identities based on owner/driver roles until Clerk Auth is loaded
-      if (!headers.has("X-User-Id")) {
-        if (endpoint === "createGarage" || endpoint === "getOwnerGarages") {
-          headers.set("X-User-Id", "user_mock_owner_123");
-        } else {
-          headers.set("X-User-Id", "user_mock_driver_123");
+    prepareHeaders: async (headers) => {
+      // Check if Clerk is active in window context
+      if (typeof window !== "undefined" && (window as any).Clerk?.session) {
+        try {
+          const token = await (window as any).Clerk.session.getToken();
+          if (token) {
+            headers.set("Authorization", `Bearer ${token}`);
+          }
+        } catch (err) {
+          console.error("Failed to retrieve Clerk token", err);
         }
       }
       return headers;
@@ -58,6 +61,7 @@ export const apiSlice = createApi({
         body: garageData,
       }),
     }),
+
     searchGarages: builder.query<GarageSearchDto[], { lat: number; lng: number; radius: number }>({
       query: ({ lat, lng, radius }) => ({
         url: `/garages/search?lat=${lat}&lng=${lng}&radius=${radius}`,
@@ -82,13 +86,20 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
+    createCheckoutSession: builder.mutation<any, { bookingId: number }>({
+      query: ({ bookingId }) => ({
+        url: `/payments/stripe/checkout-session?bookingId=${bookingId}`,
+        method: "POST",
+      }),
+    }),
   }),
 })
 
-export const { 
-  useCreateGarageMutation, 
+export const {
+  useCreateGarageMutation,
   useSearchGaragesQuery,
   useReserveSpotMutation,
   useConfirmBookingMutation,
-  useGetActiveBookingQuery
+  useGetActiveBookingQuery,
+  useCreateCheckoutSessionMutation
 } = apiSlice

@@ -1,11 +1,11 @@
 server:
-  port: 8082
+  port: 8080
 
 spring:
   application:
-    name: parking-service
+    name: parking-backend
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/parking_spaces
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:parking_spaces}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
@@ -20,10 +20,17 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${CLERK_JWKS_URI}
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
+stripe:
+  api-key: ${STRIPE_SECRET_KEY:sk_test_mock}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock}
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/search?success=true}
+  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/search?cancelled=true}

@@ -1,6 +1,6 @@
-package com.parking.payment.repository;
+package com.parking.park.repository;
 
-import com.parking.payment.model.Booking;
+import com.parking.park.model.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

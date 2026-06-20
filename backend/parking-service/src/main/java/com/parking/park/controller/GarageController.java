@@ -33,14 +33,14 @@ public class GarageController {
     @PostMapping
     public ResponseEntity<Garage> onboardGarage(
             @RequestBody GarageOnboardRequest request,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "user_mock_owner_123") String userId) {
+            @RequestHeader(value = "X-User-Id") String userId) {
         Garage savedGarage = garageService.onboardGarage(request, userId);
         return new ResponseEntity<>(savedGarage, HttpStatus.CREATED);
     }
 
     @GetMapping
     public ResponseEntity<List<Garage>> getOwnerGarages(
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "user_mock_owner_123") String userId) {
+            @RequestHeader(value = "X-User-Id") String userId) {
         List<Garage> garages = garageService.getGaragesByOwner(userId);
         return ResponseEntity.ok(garages);
     }

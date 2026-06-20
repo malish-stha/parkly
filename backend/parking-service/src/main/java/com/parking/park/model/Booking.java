@@ -1,4 +1,4 @@
-package com.parking.payment.model;
+package com.parking.park.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

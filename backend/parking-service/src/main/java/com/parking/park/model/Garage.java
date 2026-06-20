@@ -27,7 +27,7 @@ public class Garage {
     @Column(name = "rate_per_hour", nullable = false)
     private double ratePerHour;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(name = "owner_id", nullable = false)

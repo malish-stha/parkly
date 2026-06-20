@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ImageUploader } from "@/components/image-uploader"
 import { LayoutDesigner } from "@/components/owner/layout-designer"
 import { useCreateGarageMutation } from "@/store/apiSlice"
+import { UserButton } from "@clerk/nextjs"
 
 interface SpotConfig {
   spotNumber: string;
@@ -75,7 +76,10 @@ export default function NewGaragePage() {
             </button>
             <span className="text-xl font-bold tracking-tight text-foreground">Onboard Garage</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <UserButton />
+          </div>
         </div>
       </header>
 

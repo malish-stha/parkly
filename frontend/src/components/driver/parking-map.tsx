@@ -42,80 +42,106 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 }
 
 export default function ParkingMap({ center, garages, selectedGarageId, onSelectGarage, onMapClick }: ParkingMapProps) {
-  
-  // Custom search center pin icon (sharp blue marker)
+
+  // Custom search center pin icon (sharp blue pin with white dot)
   const searchCenterIcon = L.divIcon({
     className: "search-center-pin",
     html: `
       <div style="
-        background-color: rgba(59, 130, 246, 0.15);
-        border: 2px solid #3b82f6;
-        color: #3b82f6;
-        font-weight: 800;
-        width: 24px;
-        height: 24px;
+        width: 30px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      " class="rounded-none select-none">
-        <div style="width: 8px; height: 8px; background-color: #3b82f6;" class="rounded-none"></div>
+        filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
+      ">
+        <svg viewBox="0 0 384 512" width="30" height="40" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#3b82f6" stroke="#2563eb" stroke-width="12" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0z"/>
+          <circle cx="192" cy="192" r="60" fill="#ffffff"/>
+        </svg>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [30, 40],
+    iconAnchor: [15, 40],
+    popupAnchor: [0, -40]
   })
 
-  // Custom sharp rectangular DivIcon creator reflecting occupancy fraction
+  // Custom sharp green map pin representing parking garage
   const createOccupancyIcon = (openSpots: number, totalSpots: number, isSelected: boolean) => {
     const occupancyPercent = totalSpots > 0 ? (openSpots / totalSpots) * 100 : 0
     
-    let color = "#10b981" // Emerald Green
-    let bg = "rgba(16, 185, 129, 0.1)"
-    let border = "#10b981"
+    let color = "#10b981" // Emerald Green (Available)
+    let border = "#ffffff"
 
     if (openSpots === 0) {
-      color = "#ef4444" // Rose Red
-      bg = "rgba(239, 68, 68, 0.1)"
-      border = "#ef4444"
+      color = "#ef4444" // Rose Red (Full)
     } else if (occupancyPercent < 50) {
-      color = "#f59e0b" // Amber Yellow
-      bg = "rgba(245, 158, 11, 0.1)"
-      border = "#f59e0b"
+      color = "#f59e0b" // Amber Yellow (Filling fast)
     }
 
-    const shadow = isSelected ? "box-shadow: 0 0 0 3px var(--primary), 0 4px 12px rgba(0,0,0,0.25);" : "box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"
+    const hoverStyle = isSelected 
+      ? "transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6)) drop-shadow(0 4px 10px rgba(0,0,0,0.3)); border-color: #3b82f6;" 
+      : "filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));"
 
     return L.divIcon({
-      className: "custom-sharp-pin",
+      className: "custom-garage-pin",
       html: `
         <div style="
-          background-color: ${bg};
+          position: relative;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background-color: ${color};
           border: 2px solid ${border};
-          color: ${color};
-          font-weight: 800;
-          font-size: 11px;
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 38px;
-          height: 38px;
-          ${shadow}
+          color: #ffffff;
+          font-weight: 800;
+          font-size: 15px;
+          font-family: system-ui, -apple-system, sans-serif;
+          ${hoverStyle}
           transition: all 0.2s ease;
-        " class="hover:scale-105 select-none rounded-none">
-          ${openSpots}/${totalSpots}
+          box-sizing: border-box;
+        " class="hover:scale-110 select-none">
+          G
+          
+          <!-- Numeric Availability Badge -->
+          <div style="
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: ${color};
+            border: 1.5px solid #ffffff;
+            border-radius: 9999px;
+            min-width: 15px;
+            height: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #ffffff;
+            font-weight: 800;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 0 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+          ">
+            ${openSpots}
+          </div>
         </div>
       `,
-      iconSize: [38, 38],
-      iconAnchor: [19, 19],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16], // Anchored to center of circle
+      popupAnchor: [0, -16]
     })
   }
 
   return (
     <div className="w-full h-full relative">
-      <MapContainer 
-        center={[center.lat, center.lng]} 
-        zoom={14} 
+      <MapContainer
+        center={[center.lat, center.lng]}
+        zoom={14}
         style={{ width: "100%", height: "100%", zIndex: 1 }}
       >
         <TileLayer
@@ -124,9 +150,9 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
         />
         <MapController center={center} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
-        
+
         {/* Render Search Center Marker */}
-        <Marker position={[center.lat, center.lng]} icon={searchCenterIcon}>
+        <Marker position={[center.lat, center.lng]} icon={searchCenterIcon} zIndexOffset={1000}>
           <Popup className="custom-popup rounded-none">
             <div className="p-1 font-sans text-xs">
               <span className="font-semibold text-primary">Search Center Location</span>
@@ -144,6 +170,7 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
               key={garage.id}
               position={[garage.latitude, garage.longitude]}
               icon={createOccupancyIcon(openSpots, totalSpots, isSelected)}
+              zIndexOffset={isSelected ? 500 : 10}
               eventHandlers={{
                 click: () => onSelectGarage(garage)
               }}

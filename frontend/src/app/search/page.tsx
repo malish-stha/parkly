@@ -7,7 +7,8 @@ import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle } from "lucide-react
 import { ThemeToggle } from "@/components/theme-toggle"
 import SearchSidebar from "@/components/driver/search-sidebar"
 import SpotSelector from "@/components/driver/spot-selector"
-import { useSearchGaragesQuery, GarageSearchDto, useConfirmBookingMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
+import { useSearchGaragesQuery, GarageSearchDto, useCreateCheckoutSessionMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
+import { UserButton, useAuth } from "@clerk/nextjs"
 import { useDispatch, useSelector } from "react-redux"
 import { RootState } from "@/store/store"
 import { setReservation, clearReservation, tickTimer } from "@/store/bookingSlice"
@@ -59,12 +60,15 @@ export default function SearchPage() {
     lng: center.lng,
     radius,
   })
+  // Clerk authentication state
+  const { userId, isLoaded } = useAuth()
 
   // Queries & Mutations for active reservation and confirmations
   const { data: activeBookingDb, refetch: refetchActiveBooking } = useGetActiveBookingQuery(undefined, {
+    skip: !isLoaded || !userId,
     refetchOnMountOrArgChange: true
   })
-  const [confirmBooking, { isLoading: isConfirming }] = useConfirmBookingMutation()
+  const [createCheckoutSession, { isLoading: isRedirecting }] = useCreateCheckoutSessionMutation()
   const [paymentSuccess, setPaymentSuccess] = useState(false)
 
   // Keep track of the active reservation state to detect the transition from active to null (expired/cleared)
@@ -179,18 +183,12 @@ export default function SearchPage() {
   const handleConfirmPayment = async () => {
     if (!activeReservation || activeReservation.bookingId.startsWith("temp-")) return
     try {
-      await confirmBooking({ bookingId: Number(activeReservation.bookingId) }).unwrap()
-      setPaymentSuccess(true)
-      dispatch(clearReservation())
-      refetchGarages()
-      refetchActiveBooking()
-      
-      // Auto-clear confirmation banner after 6 seconds
-      setTimeout(() => {
-        setPaymentSuccess(false)
-      }, 6000)
+      const session = await createCheckoutSession({ bookingId: Number(activeReservation.bookingId) }).unwrap()
+      if (session && session.url) {
+        window.location.href = session.url
+      }
     } catch (err) {
-      console.error("Payment confirmation failed", err)
+      console.error("Stripe Checkout redirect failed", err)
     }
   }
 
@@ -210,6 +208,7 @@ export default function SearchPage() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            <UserButton />
           </div>
         </div>
       </header>
@@ -230,15 +229,15 @@ export default function SearchPage() {
           </div>
           <button
             onClick={handleConfirmPayment}
-            disabled={isConfirming || activeReservation.bookingId.startsWith("temp-")}
+            disabled={isRedirecting || activeReservation.bookingId.startsWith("temp-")}
             className="h-8 px-4 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors disabled:opacity-50 cursor-pointer rounded-none text-xs text-center"
           >
-            {isConfirming || activeReservation.bookingId.startsWith("temp-") ? (
+            {isRedirecting || activeReservation.bookingId.startsWith("temp-") ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <CreditCard className="h-3.5 w-3.5" />
             )}
-            <span>Pay & Confirm (Mock)</span>
+            <span>Pay & Confirm (Stripe)</span>
           </button>
         </div>
       )}

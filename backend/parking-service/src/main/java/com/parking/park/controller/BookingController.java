@@ -1,8 +1,10 @@
-package com.parking.payment.controller;
+package com.parking.park.controller;
 
-import com.parking.payment.model.Booking;
-import com.parking.payment.repository.BookingRepository;
-import com.parking.payment.service.BookingEventPublisher;
+import com.parking.park.model.Booking;
+import com.parking.park.model.ParkingSpot;
+import com.parking.park.repository.BookingRepository;
+import com.parking.park.repository.ParkingSpotRepository;
+import com.parking.park.service.GarageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,18 +22,22 @@ public class BookingController {
     private static final Logger log = LoggerFactory.getLogger(BookingController.class);
 
     private final BookingRepository bookingRepository;
-    private final BookingEventPublisher eventPublisher;
+    private final ParkingSpotRepository spotRepository;
+    private final GarageService garageService;
 
-    public BookingController(BookingRepository bookingRepository, BookingEventPublisher eventPublisher) {
+    public BookingController(BookingRepository bookingRepository,
+                             ParkingSpotRepository spotRepository,
+                             GarageService garageService) {
         this.bookingRepository = bookingRepository;
-        this.eventPublisher = eventPublisher;
+        this.spotRepository = spotRepository;
+        this.garageService = garageService;
     }
 
     @PostMapping("/{id}/confirm")
     @Transactional
     public ResponseEntity<?> confirmBooking(
             @PathVariable Long id,
-            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+            @RequestHeader(value = "X-User-Id") String userId) {
         
         log.info("Confirming booking ID: {}", id);
 
@@ -52,16 +58,23 @@ public class BookingController {
         booking.setStatus("CONFIRMED");
         Booking savedBooking = bookingRepository.save(booking);
 
-        // Publish confirm event to Kafka
-        eventPublisher.publishReservationConfirmed(savedBooking.getId(), savedBooking.getSpotId(), savedBooking.getGarageId());
-        log.info("Booking ID {} status updated to CONFIRMED and confirmation event published", savedBooking.getId());
+        // Direct transactional update to Spot Status in monolith
+        ParkingSpot spot = spotRepository.findById(savedBooking.getSpotId()).orElse(null);
+        if (spot != null) {
+            spot.setStatus("RESERVED");
+            spotRepository.save(spot);
+            garageService.evictSearchCache();
+            log.info("Booking ID {} status updated to CONFIRMED and spot status updated to RESERVED", savedBooking.getId());
+        } else {
+            log.error("ParkingSpot not found for ID: {}", savedBooking.getSpotId());
+        }
 
         return ResponseEntity.ok(savedBooking);
     }
 
     @GetMapping("/active")
     public ResponseEntity<?> getActiveBooking(
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "user_mock_driver_123") String userId) {
+            @RequestHeader(value = "X-User-Id") String userId) {
         
         log.info("Fetching active booking for user ID: {}", userId);
 

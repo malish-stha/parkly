@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { gsap } from "gsap";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -330,12 +331,22 @@ export default function Home() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              {/* <Link
-                href="/search"
-                className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground"
-              >
-                DASHBOARD
-              </Link> */}
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <button className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer">
+                    SIGN IN
+                  </button>
+                </SignInButton>
+              </Show>
+              <Show when="signed-in">
+                <Link
+                  href="/search"
+                  className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer"
+                >
+                  DASHBOARD
+                </Link>
+                <UserButton />
+              </Show>
             </div>
           </div>
         </nav>
