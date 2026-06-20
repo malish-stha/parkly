@@ -126,7 +126,7 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         
         {/* Render Search Center Marker */}
-        <Marker position={[center.lat, center.lng]}>
+        <Marker position={[center.lat, center.lng]} icon={searchCenterIcon}>
           <Popup className="custom-popup rounded-none">
             <div className="p-1 font-sans text-xs">
               <span className="font-semibold text-primary">Search Center Location</span>

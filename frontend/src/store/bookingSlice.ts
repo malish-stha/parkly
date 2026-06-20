@@ -21,7 +21,9 @@ const bookingSlice = createSlice({
   initialState,
   reducers: {
     setReservation: (state, action: PayloadAction<Omit<Reservation, 'secondsRemaining'>>) => {
-      const expiresTime = new Date(action.payload.expiresAt).getTime();
+      const rawExpires = action.payload.expiresAt;
+      const formattedExpires = rawExpires.endsWith('Z') ? rawExpires : `${rawExpires}Z`;
+      const expiresTime = new Date(formattedExpires).getTime();
       const now = new Date().getTime();
       const secondsRemaining = Math.max(0, Math.floor((expiresTime - now) / 1000));
       

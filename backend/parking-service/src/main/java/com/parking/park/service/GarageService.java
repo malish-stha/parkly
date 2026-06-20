@@ -55,4 +55,9 @@ public class GarageService {
         return garageRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Garage not found with ID: " + id));
     }
+
+    @CacheEvict(value = "garagesNearby", allEntries = true)
+    public void evictSearchCache() {
+        // Intentionally empty: annotation clears the Redis search cache entries
+    }
 }

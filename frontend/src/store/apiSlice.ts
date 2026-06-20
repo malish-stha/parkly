@@ -38,10 +38,16 @@ export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: "http://localhost:8080/api/v1",
-    prepareHeaders: (headers) => {
-      // Relay mock identity until Clerk Auth is loaded
-      headers.set("X-User-Id", "user_mock_owner_123")
-      return headers
+    prepareHeaders: (headers, { endpoint }) => {
+      // Relay mock identities based on owner/driver roles until Clerk Auth is loaded
+      if (!headers.has("X-User-Id")) {
+        if (endpoint === "createGarage" || endpoint === "getOwnerGarages") {
+          headers.set("X-User-Id", "user_mock_owner_123");
+        } else {
+          headers.set("X-User-Id", "user_mock_driver_123");
+        }
+      }
+      return headers;
     },
   }),
   endpoints: (builder) => ({
@@ -58,7 +64,31 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
+    reserveSpot: builder.mutation<any, { spotId: number }>({
+      query: ({ spotId }) => ({
+        url: `/spots/${spotId}/reserve`,
+        method: "POST",
+      }),
+    }),
+    confirmBooking: builder.mutation<any, { bookingId: number }>({
+      query: ({ bookingId }) => ({
+        url: `/bookings/${bookingId}/confirm`,
+        method: "POST",
+      }),
+    }),
+    getActiveBooking: builder.query<any, void>({
+      query: () => ({
+        url: "/bookings/active",
+        method: "GET",
+      }),
+    }),
   }),
 })
 
-export const { useCreateGarageMutation, useSearchGaragesQuery } = apiSlice
+export const { 
+  useCreateGarageMutation, 
+  useSearchGaragesQuery,
+  useReserveSpotMutation,
+  useConfirmBookingMutation,
+  useGetActiveBookingQuery
+} = apiSlice
