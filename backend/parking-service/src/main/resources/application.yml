@@ -36,3 +36,7 @@ stripe:
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock}
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/search?success=true}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/search?cancelled=true}
+
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
