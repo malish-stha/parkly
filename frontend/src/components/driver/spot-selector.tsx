@@ -176,16 +176,25 @@ export default function SpotSelector({
                       if (isSpotSelected) {
                         spotStyles = "bg-primary/10 border-primary text-primary hover:bg-primary/15 cursor-pointer shadow-[0_0_0_2px_var(--primary)]"
                       }
-                    } else if (isCurrentlyReservedByThisDriver) {
-                      spotStyles = "bg-primary/10 border-primary text-primary cursor-not-allowed shadow-[0_0_0_2px_var(--primary)]"
+                    } else {
+                      spotStyles = "bg-muted-foreground/5 border-border text-muted-foreground/40 cursor-pointer opacity-50"
+                      if (isCurrentlyReservedByThisDriver) {
+                        spotStyles = "bg-primary/10 border-primary text-primary cursor-not-allowed shadow-[0_0_0_2px_var(--primary)]"
+                      } else if (isSpotSelected) {
+                        spotStyles = "bg-muted-foreground/10 border-primary text-primary cursor-pointer opacity-80 shadow-[0_0_0_2px_var(--primary)]"
+                      }
                     }
+
+                    const tooltipText = !isAvailable && spot.bookedUntil
+                      ? `Booked until ${new Date(spot.bookedUntil.endsWith('Z') ? spot.bookedUntil : spot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : undefined;
 
                     return (
                       <button
                         key={spot.id}
                         type="button"
-                        disabled={!isAvailable}
                         onClick={() => setSelectedSpot(spot)}
+                        title={tooltipText}
                         className={`border p-2 flex flex-col items-center justify-center gap-1.5 transition-all text-[11px] font-bold rounded-none h-14 ${spotStyles}`}
                       >
                         <span className="truncate">{spot.spotNumber}</span>
@@ -202,6 +211,17 @@ export default function SpotSelector({
 
       {/* Drawer Action Footer */}
       <div className="p-6 border-t border-border bg-background space-y-4">
+        {selectedSpot && !isCurrentSpotAvailable && (
+          <div className="border border-amber-500/30 bg-amber-500/5 p-3 text-xs font-semibold text-amber-600 text-center rounded-none animate-in fade-in duration-200">
+            ⚠️ Spot {selectedSpot.spotNumber} is booked until{" "}
+            <span className="font-bold text-amber-700">
+              {selectedSpot.bookedUntil
+                ? new Date(selectedSpot.bookedUntil.endsWith('Z') ? selectedSpot.bookedUntil : selectedSpot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : "the end of the slot"}
+            </span>.
+          </div>
+        )}
+
         {reserveError && (
           <div className="border border-destructive bg-destructive/10 p-3 text-xs font-semibold text-destructive text-center rounded-none">
             {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}

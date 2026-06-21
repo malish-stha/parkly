@@ -57,6 +57,9 @@ public class GarageSearchService {
                                         .orElse(null);
                                 if (conflict != null) {
                                     s.setStatus(conflict.getStatus()); // sets to "CONFIRMED" (RESERVED) or "PENDING_PAYMENT"
+                                    if (conflict.getEndTime() != null) {
+                                        s.setBookedUntil(conflict.getEndTime().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                                    }
                                 } else {
                                     s.setStatus("RESERVED");
                                 }

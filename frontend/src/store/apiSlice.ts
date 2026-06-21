@@ -20,6 +20,7 @@ export interface ParkingSpotDto {
   spotNumber: string;
   vehicleType: "STANDARD" | "EV" | "SUV";
   status: "AVAILABLE" | "PENDING_PAYMENT" | "RESERVED" | "OCCUPIED";
+  bookedUntil?: string;
 }
 
 export interface GarageSearchDto {
