@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import SearchSidebar from "@/components/driver/search-sidebar"
@@ -312,6 +313,12 @@ function SearchPageContent() {
             <span className="text-xl font-bold tracking-tight text-foreground">Driver Dashboard</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              href="/bookings"
+              className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors cursor-pointer mr-2"
+            >
+              My Bookings
+            </Link>
             <ThemeToggle />
             <UserButton />
           </div>

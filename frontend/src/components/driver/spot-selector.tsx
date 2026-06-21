@@ -125,19 +125,19 @@ export default function SpotSelector({
               <span>Available Standard</span>
             </div>
             <div className="flex items-center gap-1.5 text-emerald-500">
-              <span className="w-3.5 h-3.5 bg-emerald-500/10 border border-emerald-500 inline-block flex items-center justify-center">
-                <Zap className="h-2 w-2" />
+              <span className="w-3.5 h-3.5 bg-emerald-500/10 border border-emerald-500 inline-flex items-center justify-center">
+                <Zap className="h-2.5 w-2.5" />
               </span>
               <span>Available EV</span>
             </div>
             <div className="flex items-center gap-1.5 text-blue-500">
-              <span className="w-3.5 h-3.5 bg-blue-500/10 border border-blue-500 inline-block flex items-center justify-center">
-                <Truck className="h-2 w-2" />
+              <span className="w-3.5 h-3.5 bg-blue-500/10 border border-blue-500 inline-flex items-center justify-center">
+                <Truck className="h-2.5 w-2.5" />
               </span>
               <span>Available SUV</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground/60">
-              <span className="w-3.5 h-3.5 bg-muted-foreground/10 border border-muted-foreground/20 text-muted-foreground/30 inline-block flex items-center justify-center select-none line-through">
+              <span className="w-3.5 h-3.5 bg-muted-foreground/10 border border-muted-foreground/20 text-muted-foreground/30 inline-flex items-center justify-center select-none text-[8px] leading-none">
                 x
               </span>
               <span>Reserved/Occupied</span>

@@ -1,6 +1,8 @@
 package com.parking.park.controller;
 
+import com.parking.park.dto.BookingHistoryDto;
 import com.parking.park.model.Booking;
+import com.parking.park.model.Garage;
 import com.parking.park.model.ParkingSpot;
 import com.parking.park.repository.BookingRepository;
 import com.parking.park.repository.ParkingSpotRepository;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/bookings")
@@ -86,5 +89,58 @@ public class BookingController {
         // Return the first/most recent active booking
         Booking active = activeBookings.get(activeBookings.size() - 1);
         return ResponseEntity.ok(active);
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getBookingHistory(
+            @RequestHeader(value = "X-User-Id") String userId) {
+        
+        log.info("Fetching booking history for user ID: {}", userId);
+
+        List<Booking> bookings = bookingRepository.findByDriverIdOrderByCreatedAtDesc(userId);
+        
+        List<BookingHistoryDto> history = bookings.stream()
+                .map(b -> {
+                    String garageName = "Unknown Garage";
+                    String garageAddress = "Unknown Address";
+                    String spotNumber = "Unknown Spot";
+
+                    try {
+                        Garage garage = garageService.getGarageById(b.getGarageId());
+                        if (garage != null) {
+                            garageName = garage.getName();
+                            garageAddress = garage.getAddress();
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to find garage with ID {}", b.getGarageId());
+                    }
+
+                    try {
+                        ParkingSpot spot = spotRepository.findById(b.getSpotId()).orElse(null);
+                        if (spot != null) {
+                            spotNumber = spot.getSpotNumber();
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to find spot with ID {}", b.getSpotId());
+                    }
+
+                    return new BookingHistoryDto(
+                            b.getId(),
+                            b.getDriverId(),
+                            b.getGarageId(),
+                            garageName,
+                            garageAddress,
+                            b.getSpotId(),
+                            spotNumber,
+                            b.getBaseAmount(),
+                            b.getStatus(),
+                            b.getStartTime(),
+                            b.getEndTime(),
+                            b.getCreatedAt()
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(history);
     }
 }

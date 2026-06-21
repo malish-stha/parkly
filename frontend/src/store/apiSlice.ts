@@ -35,6 +35,21 @@ export interface GarageSearchDto {
   spots: ParkingSpotDto[];
 }
 
+export interface BookingHistoryDto {
+  id: number;
+  driverId: string;
+  garageId: number;
+  garageName: string;
+  garageAddress: string;
+  spotId: number;
+  spotNumber: string;
+  baseAmount: number;
+  status: "PENDING_PAYMENT" | "CONFIRMED" | "CANCELLED";
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+}
+
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
@@ -114,6 +129,12 @@ export const apiSlice = createApi({
         body,
       }),
     }),
+    getBookingsHistory: builder.query<BookingHistoryDto[], void>({
+      query: () => ({
+        url: "/bookings",
+        method: "GET",
+      }),
+    }),
   }),
 })
 
@@ -124,5 +145,6 @@ export const {
   useConfirmBookingMutation,
   useGetActiveBookingQuery,
   useInitiateEsewaPaymentMutation,
-  useVerifyEsewaPaymentMutation
+  useVerifyEsewaPaymentMutation,
+  useGetBookingsHistoryQuery
 } = apiSlice

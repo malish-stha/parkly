@@ -345,6 +345,12 @@ export default function Home() {
                 >
                   DASHBOARD
                 </Link>
+                <Link
+                  href="/bookings"
+                  className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer"
+                >
+                  MY BOOKINGS
+                </Link>
                 <UserButton />
               </Show>
             </div>
