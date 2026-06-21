@@ -16,6 +16,10 @@ interface SearchSidebarProps {
   onFilterVehicleChange: (val: "STANDARD" | "EV" | "SUV" | "ALL") => void;
   sortBy: "PRICE" | "DISTANCE" | "SPOTS";
   onSortByChange: (val: "PRICE" | "DISTANCE" | "SPOTS") => void;
+  startTime: string;
+  onStartTimeChange: (val: string) => void;
+  endTime: string;
+  onEndTimeChange: (val: string) => void;
 }
 
 export default function SearchSidebar({
@@ -29,7 +33,11 @@ export default function SearchSidebar({
   filterVehicle,
   onFilterVehicleChange,
   sortBy,
-  onSortByChange
+  onSortByChange,
+  startTime,
+  onStartTimeChange,
+  endTime,
+  onEndTimeChange
 }: SearchSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -138,6 +146,31 @@ export default function SearchSidebar({
 
       {/* Filter and Config panel */}
       <div className="p-6 border-b border-border space-y-5">
+        {/* Time Selection */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Booking Duration</span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Start Time</label>
+              <input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => onStartTimeChange(e.target.value)}
+                className="w-full h-9 px-2 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-xs rounded-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">End Time</label>
+              <input
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => onEndTimeChange(e.target.value)}
+                className="w-full h-9 px-2 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-xs rounded-none"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Radius Slider */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-semibold">

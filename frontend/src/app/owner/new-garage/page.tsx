@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Landmark, MapPin, DollarSign, Image as ImageIcon, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, Landmark, MapPin, Banknote, Image as ImageIcon, Send, Loader2 } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ImageUploader } from "@/components/image-uploader"
 import { LayoutDesigner } from "@/components/owner/layout-designer"
@@ -175,7 +175,7 @@ export default function NewGaragePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
+                    <Banknote className="h-4 w-4 text-primary" />
                     <span>Hourly Rate (NPR) *</span>
                   </label>
                   <input

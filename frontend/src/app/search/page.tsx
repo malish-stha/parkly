@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import dynamic from "next/dynamic"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import SearchSidebar from "@/components/driver/search-sidebar"
 import SpotSelector from "@/components/driver/spot-selector"
-import { useSearchGaragesQuery, GarageSearchDto, useCreateCheckoutSessionMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
+import { useSearchGaragesQuery, GarageSearchDto, useInitiateEsewaPaymentMutation, useVerifyEsewaPaymentMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
 import { UserButton, useAuth } from "@clerk/nextjs"
 import { useDispatch, useSelector } from "react-redux"
 import { RootState } from "@/store/store"
@@ -38,8 +38,28 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c
 }
 
+function getLocalDatetimeString(date: Date) {
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+}
+
 export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full h-screen bg-background flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent animate-spin"></div>
+        <span className="text-sm text-muted-foreground font-semibold">Loading Driver Dashboard...</span>
+      </div>
+    }>
+      <SearchPageContent />
+    </Suspense>
+  )
+}
+
+function SearchPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const esewaData = searchParams.get("data")
   const dispatch = useDispatch()
 
   // Redux booking state selectors
@@ -48,6 +68,36 @@ export default function SearchPage() {
   // Search state
   const [center, setCenter] = useState({ lat: 27.7172, lng: 85.3240 }) // Default Kathmandu center
   const [radius, setRadius] = useState(5.0) // 5km search radius
+  
+  // Booking start/end time range state (local time inputs)
+  const [startTimeLocal, setStartTimeLocal] = useState(() => {
+    const now = new Date()
+    return getLocalDatetimeString(now)
+  })
+  const [endTimeLocal, setEndTimeLocal] = useState(() => {
+    const nextHour = new Date()
+    nextHour.setHours(nextHour.getHours() + 1)
+    return getLocalDatetimeString(nextHour)
+  })
+
+  // Convert to UTC ISO format for backend queries
+  const startTimeUtc = useMemo(() => {
+    if (!startTimeLocal) return ""
+    try {
+      return new Date(startTimeLocal).toISOString()
+    } catch (e) {
+      return ""
+    }
+  }, [startTimeLocal])
+
+  const endTimeUtc = useMemo(() => {
+    if (!endTimeLocal) return ""
+    try {
+      return new Date(endTimeLocal).toISOString()
+    } catch (e) {
+      return ""
+    }
+  }, [endTimeLocal])
   
   // Filters & Sorting state
   const [filterVehicle, setFilterVehicle] = useState<"STANDARD" | "EV" | "SUV" | "ALL">("ALL")
@@ -59,6 +109,8 @@ export default function SearchPage() {
     lat: center.lat,
     lng: center.lng,
     radius,
+    startTime: startTimeUtc,
+    endTime: endTimeUtc,
   })
   // Clerk authentication state
   const { userId, isLoaded } = useAuth()
@@ -68,7 +120,8 @@ export default function SearchPage() {
     skip: !isLoaded || !userId,
     refetchOnMountOrArgChange: true
   })
-  const [createCheckoutSession, { isLoading: isRedirecting }] = useCreateCheckoutSessionMutation()
+  const [initiateEsewaPayment, { isLoading: isRedirecting }] = useInitiateEsewaPaymentMutation()
+  const [verifyEsewaPayment, { isLoading: isVerifying }] = useVerifyEsewaPaymentMutation()
   const [paymentSuccess, setPaymentSuccess] = useState(false)
 
   // Keep track of the active reservation state to detect the transition from active to null (expired/cleared)
@@ -76,34 +129,41 @@ export default function SearchPage() {
 
   // 1. Initial Page Load / Query response Active Reservation Restore & Sync
   useEffect(() => {
-    if (activeBookingDb && activeBookingDb.status === "PENDING_PAYMENT") {
-      const dbBookingId = String(activeBookingDb.id);
-      
-      // Guard: Do not restore if the expiration time is already in the past relative to the browser clock,
-      // or if it is on the verge of expiring (within 2 seconds) to prevent restoration loops.
-      const expiresTime = new Date(activeBookingDb.endTime.endsWith('Z') ? activeBookingDb.endTime : activeBookingDb.endTime + 'Z').getTime();
-      const now = new Date().getTime();
-      if (expiresTime - now <= 2000) {
-        return;
-      }
-      
-      // Restore or sync booking ID once Kafka processes the request
-      if (
-        !activeReservation || 
-        activeReservation.bookingId.startsWith("temp-") || 
-        activeReservation.bookingId !== dbBookingId
-      ) {
-        dispatch(
-          setReservation({
-            bookingId: dbBookingId,
-            spotId: String(activeBookingDb.spotId),
-            garageId: String(activeBookingDb.garageId),
-            expiresAt: activeBookingDb.endTime
-          })
-        )
+    if (activeBookingDb) {
+      if (activeBookingDb.status === "PENDING_PAYMENT" && !paymentSuccess) {
+        const dbBookingId = String(activeBookingDb.id);
+        
+        // Guard: Do not restore if the expiration time is already in the past relative to the browser clock,
+        // or if it is on the verge of expiring (within 2 seconds) to prevent restoration loops.
+        const expiresTime = new Date(activeBookingDb.endTime.endsWith('Z') ? activeBookingDb.endTime : activeBookingDb.endTime + 'Z').getTime();
+        const now = new Date().getTime();
+        if (expiresTime - now <= 2000) {
+          return;
+        }
+        
+        // Restore or sync booking ID once Kafka processes the request
+        if (
+          !activeReservation || 
+          activeReservation.bookingId.startsWith("temp-") || 
+          activeReservation.bookingId !== dbBookingId
+        ) {
+          dispatch(
+            setReservation({
+              bookingId: dbBookingId,
+              spotId: String(activeBookingDb.spotId),
+              garageId: String(activeBookingDb.garageId),
+              expiresAt: activeBookingDb.endTime
+            })
+          )
+        }
+      } else if (activeBookingDb.status === "CONFIRMED") {
+        // If DB has confirmed the booking, clear any stale frontend reservation banners
+        if (activeReservation) {
+          dispatch(clearReservation())
+        }
       }
     }
-  }, [activeBookingDb, activeReservation, dispatch])
+  }, [activeBookingDb, activeReservation, paymentSuccess, dispatch])
 
   // 2. Timer Countdown Tick hook
   useEffect(() => {
@@ -138,6 +198,28 @@ export default function SearchPage() {
       refetchActiveBooking()
     }
   }, [activeReservation, refetchGarages, refetchActiveBooking])
+
+  // 5. eSewa Payment Callback Verification
+  const hasVerifiedRef = useRef(false)
+  useEffect(() => {
+    if (esewaData && isLoaded && userId && !hasVerifiedRef.current) {
+      hasVerifiedRef.current = true
+      verifyEsewaPayment({ data: esewaData })
+        .unwrap()
+        .then(() => {
+          setPaymentSuccess(true)
+          dispatch(clearReservation())
+          refetchActiveBooking()
+          refetchGarages()
+          // Clean up URL query params
+          router.replace("/search")
+        })
+        .catch((err) => {
+          console.error("eSewa verification failed", err)
+          router.replace("/search")
+        })
+    }
+  }, [esewaData, isLoaded, userId, verifyEsewaPayment, dispatch, refetchActiveBooking, refetchGarages, router])
 
   // Filter and sort garages client-side
   const processedGarages = useMemo(() => {
@@ -183,17 +265,40 @@ export default function SearchPage() {
   const handleConfirmPayment = async () => {
     if (!activeReservation || activeReservation.bookingId.startsWith("temp-")) return
     try {
-      const session = await createCheckoutSession({ bookingId: Number(activeReservation.bookingId) }).unwrap()
-      if (session && session.url) {
-        window.location.href = session.url
+      const esewaPayload = await initiateEsewaPayment({ bookingId: Number(activeReservation.bookingId) }).unwrap()
+      if (esewaPayload && esewaPayload.esewa_url) {
+        // Dynamically create and submit POST form to eSewa endpoint
+        const form = document.createElement("form")
+        form.method = "POST"
+        form.action = esewaPayload.esewa_url
+
+        Object.entries(esewaPayload).forEach(([key, val]) => {
+          if (key !== "esewa_url") {
+            const hiddenField = document.createElement("input")
+            hiddenField.type = "hidden"
+            hiddenField.name = key
+            hiddenField.value = String(val)
+            form.appendChild(hiddenField)
+          }
+        })
+
+        document.body.appendChild(form)
+        form.submit()
       }
     } catch (err) {
-      console.error("Stripe Checkout redirect failed", err)
+      console.error("eSewa payment initiation failed", err)
     }
   }
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground transition-colors duration-300 overflow-hidden">
+      {/* Full-screen Loading Overlay during eSewa Redirect */}
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 animate-in fade-in duration-200">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-sm font-semibold text-foreground">Redirecting to eSewa...</span>
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md shrink-0">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
@@ -213,34 +318,7 @@ export default function SearchPage() {
         </div>
       </header>
 
-      {/* Reservation Active / Confirmed Banner */}
-      {activeReservation && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold rounded-none shrink-0 animate-in fade-in duration-300">
-          <div className="flex items-center gap-2 text-amber-600">
-            <Clock className="h-4 w-4 animate-pulse shrink-0" />
-            <span>
-              Reservation Locked! You have{" "}
-              <span className="font-bold text-amber-700">
-                {Math.floor(activeReservation.secondsRemaining / 60)}:
-                {String(activeReservation.secondsRemaining % 60).padStart(2, "0")}
-              </span>{" "}
-              minutes remaining to pay and secure your spot.
-            </span>
-          </div>
-          <button
-            onClick={handleConfirmPayment}
-            disabled={isRedirecting || activeReservation.bookingId.startsWith("temp-")}
-            className="h-8 px-4 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors disabled:opacity-50 cursor-pointer rounded-none text-xs text-center"
-          >
-            {isRedirecting || activeReservation.bookingId.startsWith("temp-") ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <CreditCard className="h-3.5 w-3.5" />
-            )}
-            <span>Pay & Confirm (Stripe)</span>
-          </button>
-        </div>
-      )}
+
 
       {paymentSuccess && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/30 px-6 py-3 flex items-center gap-2 text-xs font-semibold text-emerald-600 shrink-0 animate-in fade-in duration-300 rounded-none">
@@ -269,6 +347,10 @@ export default function SearchPage() {
           onFilterVehicleChange={(val) => setFilterVehicle(val)}
           sortBy={sortBy}
           onSortByChange={(val) => setSortBy(val)}
+          startTime={startTimeLocal}
+          onStartTimeChange={setStartTimeLocal}
+          endTime={endTimeLocal}
+          onEndTimeChange={setEndTimeLocal}
         />
 
         {/* Map Canvas */}
@@ -291,22 +373,47 @@ export default function SearchPage() {
             garage={selectedGarage}
             activeReservationSpotId={activeReservation?.spotId}
             onClose={() => setSelectedGarageId(null)}
-            onReserve={(res) => {
-              // Store temporary booking ID to start ticking immediately
+            startTime={startTimeUtc}
+            endTime={endTimeUtc}
+            onReserve={async (res) => {
+              // Close the spot selector drawer
+              setSelectedGarageId(null)
+              
+              // Store reservation details in Redux using the actual bookingId
               dispatch(
                 setReservation({
-                  bookingId: "temp-" + Date.now(),
+                  bookingId: String(res.bookingId),
                   spotId: String(res.spotId),
                   garageId: String(res.garageId),
                   expiresAt: res.expiresAt
                 })
               )
               refetchGarages()
-              
-              // Trigger active reservation query refetch after 500ms to allow Kafka processing
-              setTimeout(() => {
-                refetchActiveBooking()
-              }, 500)
+
+              // Immediately initiate eSewa payment and redirect
+              try {
+                const esewaPayload = await initiateEsewaPayment({ bookingId: Number(res.bookingId) }).unwrap()
+                if (esewaPayload && esewaPayload.esewa_url) {
+                  const form = document.createElement("form")
+                  form.method = "POST"
+                  form.action = esewaPayload.esewa_url
+
+                  Object.entries(esewaPayload).forEach(([key, val]) => {
+                    if (key !== "esewa_url") {
+                      const hiddenField = document.createElement("input")
+                      hiddenField.type = "hidden"
+                      hiddenField.name = key
+                      hiddenField.value = String(val)
+                      form.appendChild(hiddenField)
+                    }
+                  })
+
+                  document.body.appendChild(form)
+                  form.submit()
+                }
+              } catch (err) {
+                console.error("eSewa payment initiation failed", err)
+              }
             }}
           />
         )}

@@ -31,11 +31,13 @@ spring:
         jwt:
           jwk-set-uri: ${CLERK_JWKS_URI}
 
-stripe:
-  api-key: ${STRIPE_SECRET_KEY:sk_test_mock}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock}
-  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/search?success=true}
-  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/search?cancelled=true}
+esewa:
+  product-code: ${ESEWA_PRODUCT_CODE:EPAYTEST}
+  secret-key: ${ESEWA_SECRET_KEY:8gBm/:&EnhH.1/q}
+  esewa-url: ${ESEWA_URL:https://rc-epay.esewa.com.np/api/epay/main/v2/form}
+  status-url: ${ESEWA_STATUS_URL:https://rc-epay.esewa.com.np/api/epay/transaction/status/}
+  success-url: ${ESEWA_SUCCESS_URL:http://localhost:3000/search}
+  failure-url: ${ESEWA_FAILURE_URL:http://localhost:3000/search}
 
 app:
   cors:

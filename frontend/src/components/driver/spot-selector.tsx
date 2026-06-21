@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { X, Car, Zap, Truck, DollarSign, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
+import { X, Car, Zap, Truck, Banknote, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
 import { GarageSearchDto, ParkingSpotDto, useReserveSpotMutation } from "@/store/apiSlice"
 
 interface SpotSelectorProps {
@@ -9,13 +9,17 @@ interface SpotSelectorProps {
   onClose: () => void;
   onReserve: (resData: { spotId: number; expiresAt: string; bookingId: number; garageId: number }) => void;
   activeReservationSpotId?: string | null;
+  startTime?: string;
+  endTime?: string;
 }
 
 export default function SpotSelector({
   garage,
   onClose,
   onReserve,
-  activeReservationSpotId
+  activeReservationSpotId,
+  startTime,
+  endTime
 }: SpotSelectorProps) {
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpotDto | null>(null)
   const [reserveSpot, { isLoading: isReserving, error: reserveError }] = useReserveSpotMutation()
@@ -24,9 +28,9 @@ export default function SpotSelector({
   // Or if they are not in letter-number format, sort them in a simple grid.
   const spotGrid = useMemo(() => {
     const rowsMap: Record<string, ParkingSpotDto[]> = {}
-    
+
     // Sort spots by spotNumber naturally
-    const sortedSpots = [...garage.spots].sort((a, b) => 
+    const sortedSpots = [...garage.spots].sort((a, b) =>
       a.spotNumber.localeCompare(b.spotNumber, undefined, { numeric: true, sensitivity: 'base' })
     )
 
@@ -43,10 +47,20 @@ export default function SpotSelector({
     return Object.entries(rowsMap).sort((a, b) => a[0].localeCompare(b[0]))
   }, [garage.spots])
 
+  const isCurrentSpotAvailable = useMemo(() => {
+    if (!selectedSpot) return false
+    const match = garage.spots.find(s => s.id === selectedSpot.id)
+    return match?.status === "AVAILABLE"
+  }, [garage.spots, selectedSpot])
+
   const handleReserveClick = async () => {
     if (!selectedSpot) return
     try {
-      const res = await reserveSpot({ spotId: selectedSpot.id }).unwrap()
+      const res = await reserveSpot({
+        spotId: selectedSpot.id,
+        startTime,
+        endTime
+      }).unwrap()
       // Note: the backend ParkingSpotController publishes event to Kafka, and payment-service creates a Booking.
       // Since it is async, the bookingId will be generated in payment-service.
       // But parking-service knows the spotId and garageId. We'll pass the response up to start the countdown.
@@ -94,7 +108,7 @@ export default function SpotSelector({
             <span className="truncate">{garage.address}</span>
           </div>
           <div className="flex items-center gap-2">
-            <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+            <Banknote className="h-3.5 w-3.5 text-emerald-500" />
             <span className="font-semibold text-emerald-500">{garage.ratePerHour} NPR/hr</span>
           </div>
         </div>
@@ -198,18 +212,18 @@ export default function SpotSelector({
 
         <button
           type="button"
-          disabled={!selectedSpot || isReserving}
+          disabled={!selectedSpot || !isCurrentSpotAvailable || isReserving}
           onClick={handleReserveClick}
           className="w-full h-11 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer rounded-none text-sm"
         >
           {isReserving ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Initiating Lock...</span>
+              <span>Connecting to eSewa...</span>
             </>
           ) : (
             <>
-              <span>Reserve {selectedSpot ? `Spot ${selectedSpot.spotNumber}` : "Select a Spot"}</span>
+              <span>Pay & Confirm {selectedSpot ? `- Spot ${selectedSpot.spotNumber}` : ""}</span>
               <ArrowRight className="h-4 w-4" />
             </>
           )}

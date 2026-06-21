@@ -25,9 +25,28 @@ public class GarageController {
     public ResponseEntity<List<com.parking.park.dto.GarageSearchDto>> searchGarages(
             @RequestParam double lat,
             @RequestParam double lng,
-            @RequestParam(defaultValue = "5.0") double radius) {
-        List<com.parking.park.dto.GarageSearchDto> garages = garageSearchService.searchNearbyGarages(lat, lng, radius);
+            @RequestParam(defaultValue = "5.0") double radius,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime) {
+        
+        java.time.LocalDateTime start = (startTime != null && !startTime.isEmpty()) 
+                ? parseDateTime(startTime) 
+                : java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+                
+        java.time.LocalDateTime end = (endTime != null && !endTime.isEmpty()) 
+                ? parseDateTime(endTime) 
+                : start.plusHours(1);
+
+        List<com.parking.park.dto.GarageSearchDto> garages = garageSearchService.searchNearbyGarages(lat, lng, radius, start, end);
         return ResponseEntity.ok(garages);
+    }
+
+    private java.time.LocalDateTime parseDateTime(String dtStr) {
+        try {
+            return java.time.Instant.parse(dtStr).atZone(java.time.ZoneOffset.UTC).toLocalDateTime();
+        } catch (Exception e) {
+            return java.time.LocalDateTime.parse(dtStr);
+        }
     }
 
     @PostMapping

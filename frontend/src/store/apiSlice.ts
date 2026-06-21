@@ -62,17 +62,31 @@ export const apiSlice = createApi({
       }),
     }),
 
-    searchGarages: builder.query<GarageSearchDto[], { lat: number; lng: number; radius: number }>({
-      query: ({ lat, lng, radius }) => ({
-        url: `/garages/search?lat=${lat}&lng=${lng}&radius=${radius}`,
-        method: "GET",
-      }),
+    searchGarages: builder.query<GarageSearchDto[], { lat: number; lng: number; radius: number; startTime?: string; endTime?: string }>({
+      query: ({ lat, lng, radius, startTime, endTime }) => {
+        let url = `/garages/search?lat=${lat}&lng=${lng}&radius=${radius}`;
+        if (startTime) url += `&startTime=${encodeURIComponent(startTime)}`;
+        if (endTime) url += `&endTime=${encodeURIComponent(endTime)}`;
+        return {
+          url,
+          method: "GET",
+        };
+      },
     }),
-    reserveSpot: builder.mutation<any, { spotId: number }>({
-      query: ({ spotId }) => ({
-        url: `/spots/${spotId}/reserve`,
-        method: "POST",
-      }),
+    reserveSpot: builder.mutation<any, { spotId: number; startTime?: string; endTime?: string }>({
+      query: ({ spotId, startTime, endTime }) => {
+        let url = `/spots/${spotId}/reserve`;
+        const params = [];
+        if (startTime) params.push(`startTime=${encodeURIComponent(startTime)}`);
+        if (endTime) params.push(`endTime=${encodeURIComponent(endTime)}`);
+        if (params.length > 0) {
+          url += `?${params.join("&")}`;
+        }
+        return {
+          url,
+          method: "POST",
+        };
+      },
     }),
     confirmBooking: builder.mutation<any, { bookingId: number }>({
       query: ({ bookingId }) => ({
@@ -86,10 +100,17 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
-    createCheckoutSession: builder.mutation<any, { bookingId: number }>({
+    initiateEsewaPayment: builder.mutation<any, { bookingId: number }>({
       query: ({ bookingId }) => ({
-        url: `/payments/stripe/checkout-session?bookingId=${bookingId}`,
+        url: `/payments/esewa/initiate?bookingId=${bookingId}`,
         method: "POST",
+      }),
+    }),
+    verifyEsewaPayment: builder.mutation<any, { data: string }>({
+      query: (body) => ({
+        url: `/payments/esewa/verify`,
+        method: "POST",
+        body,
       }),
     }),
   }),
@@ -101,5 +122,6 @@ export const {
   useReserveSpotMutation,
   useConfirmBookingMutation,
   useGetActiveBookingQuery,
-  useCreateCheckoutSessionMutation
+  useInitiateEsewaPaymentMutation,
+  useVerifyEsewaPaymentMutation
 } = apiSlice
