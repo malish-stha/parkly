@@ -63,41 +63,70 @@ public class EsewaPaymentController {
 
     @PostMapping("/initiate")
     public ResponseEntity<?> initiatePayment(
-            @RequestParam Long bookingId,
+            @RequestParam String bookingIds,
             @RequestHeader(value = "X-User-Id") String userId) {
-
-        log.info("Initiating eSewa payment for Booking ID: {} (user: {})", bookingId, userId);
-
-        Booking booking = bookingRepository.findById(bookingId).orElse(null);
-        if (booking == null) {
+ 
+        log.info("Initiating eSewa payment for Booking IDs: {} (user: {})", bookingIds, userId);
+ 
+        java.util.List<Long> idList;
+        try {
+            idList = java.util.stream.Stream.of(bookingIds.split(","))
+                    .map(String::trim)
+                    .map(Long::parseLong)
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("message", "Booking not found.");
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-        }
-
-        if (!"PENDING_PAYMENT".equals(booking.getStatus())) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Booking status is " + booking.getStatus() + ". Can only pay for PENDING_PAYMENT bookings.");
+            error.put("message", "Invalid bookingIds format.");
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
         }
-
+ 
+        if (idList.isEmpty()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "No booking IDs provided.");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+ 
+        java.util.List<Booking> bookings = bookingRepository.findAllById(idList);
+        if (bookings.size() != idList.size()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "One or more bookings not found.");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
+ 
+        double totalBaseAmount = 0;
+        for (Booking booking : bookings) {
+            if (!userId.equals(booking.getDriverId())) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Unauthorized access to one or more bookings.");
+                return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+            }
+            if (!"PENDING_PAYMENT".equals(booking.getStatus())) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Booking " + booking.getId() + " is status: " + booking.getStatus() + ". Can only pay for PENDING_PAYMENT bookings.");
+                return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+            }
+            totalBaseAmount += booking.getBaseAmount();
+        }
+ 
         try {
             // Format amount dynamically to avoid trailing .0 if integer
             String amountStr;
-            double baseAmount = booking.getBaseAmount();
-            if (baseAmount == (long) baseAmount) {
-                amountStr = String.format("%d", (long) baseAmount);
+            if (totalBaseAmount == (long) totalBaseAmount) {
+                amountStr = String.format("%d", (long) totalBaseAmount);
             } else {
-                amountStr = String.format("%.2f", baseAmount);
+                amountStr = String.format("%.2f", totalBaseAmount);
             }
-
-            // Create unique transaction UUID (booking ID combined with timestamp)
-            String transactionUuid = bookingId + "-" + System.currentTimeMillis();
-
+ 
+            // Create unique transaction UUID (booking IDs combined with timestamp)
+            String idsUnderscore = idList.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining("_"));
+            String transactionUuid = idsUnderscore + "-" + System.currentTimeMillis();
+ 
             // Construct string to sign: total_amount=value,transaction_uuid=value,product_code=value
             String message = "total_amount=" + amountStr + ",transaction_uuid=" + transactionUuid + ",product_code=" + productCode;
             String signature = generateSignature(message, secretKey);
-
+ 
             Map<String, String> response = new HashMap<>();
             response.put("amount", amountStr);
             response.put("tax_amount", "0");
@@ -111,8 +140,8 @@ public class EsewaPaymentController {
             response.put("signed_field_names", "total_amount,transaction_uuid,product_code");
             response.put("signature", signature);
             response.put("esewa_url", esewaUrl);
-
-            log.info("Successfully initiated eSewa payment payload for Booking ID: {}, transaction_uuid: {}", bookingId, transactionUuid);
+ 
+            log.info("Successfully initiated eSewa payment payload for Booking IDs: {}, transaction_uuid: {}", bookingIds, transactionUuid);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("eSewa payment initiation failed", e);
@@ -209,7 +238,7 @@ public class EsewaPaymentController {
             }
 
             // 4. Update Booking and ParkingSpot statuses
-            // Extract bookingId from transactionUuid (format: bookingId-timestamp)
+            // Extract bookingId list from transactionUuid (format: id1_id2-timestamp)
             String[] parts = transactionUuid.split("-");
             if (parts.length < 1) {
                 log.error("Malformed transaction_uuid: {}", transactionUuid);
@@ -217,43 +246,47 @@ public class EsewaPaymentController {
                 error.put("message", "Malformed transaction UUID.");
                 return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
             }
-            Long bookingId = Long.parseLong(parts[0]);
-
-            Booking booking = bookingRepository.findById(bookingId).orElse(null);
-            if (booking == null) {
-                log.error("Booking not found for ID: {}", bookingId);
-                Map<String, String> error = new HashMap<>();
-                error.put("message", "Booking not found.");
-                return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+            
+            String idsPart = parts[0];
+            java.util.List<Long> bookingIds = java.util.stream.Stream.of(idsPart.split("_"))
+                    .map(Long::parseLong)
+                    .collect(java.util.stream.Collectors.toList());
+ 
+            boolean atLeastOneConfirmed = false;
+            for (Long bookingId : bookingIds) {
+                Booking booking = bookingRepository.findById(bookingId).orElse(null);
+                if (booking == null) {
+                    log.error("Booking not found for ID: {}", bookingId);
+                    continue;
+                }
+ 
+                if ("CONFIRMED".equals(booking.getStatus())) {
+                    log.info("Booking ID {} is already CONFIRMED.", bookingId);
+                    continue;
+                }
+ 
+                if (!"PENDING_PAYMENT".equals(booking.getStatus())) {
+                    log.error("Booking ID {} status is {}, cannot confirm.", bookingId, booking.getStatus());
+                    continue;
+                }
+ 
+                // Mark Booking as CONFIRMED and Spot as RESERVED
+                booking.setStatus("CONFIRMED");
+                bookingRepository.save(booking);
+ 
+                ParkingSpot spot = spotRepository.findById(booking.getSpotId()).orElse(null);
+                if (spot != null) {
+                    spot.setStatus("RESERVED");
+                    spotRepository.save(spot);
+                    atLeastOneConfirmed = true;
+                    log.info("Booking ID {} CONFIRMED, Spot ID {} RESERVED.", bookingId, booking.getSpotId());
+                } else {
+                    log.error("ParkingSpot not found for ID: {}", booking.getSpotId());
+                }
             }
-
-            if ("CONFIRMED".equals(booking.getStatus())) {
-                log.info("Booking ID {} is already CONFIRMED.", bookingId);
-                return ResponseEntity.ok(Map.of("message", "Booking already confirmed."));
-            }
-
-            if (!"PENDING_PAYMENT".equals(booking.getStatus())) {
-                log.error("Booking ID {} status is {}, cannot confirm.", bookingId, booking.getStatus());
-                Map<String, String> error = new HashMap<>();
-                error.put("message", "Invalid booking status.");
-                return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
-            }
-
-            // Mark Booking as CONFIRMED and Spot as RESERVED
-            booking.setStatus("CONFIRMED");
-            bookingRepository.save(booking);
-
-            ParkingSpot spot = spotRepository.findById(booking.getSpotId()).orElse(null);
-            if (spot != null) {
-                spot.setStatus("RESERVED");
-                spotRepository.save(spot);
+ 
+            if (atLeastOneConfirmed) {
                 garageService.evictSearchCache();
-                log.info("eSewa payment verified successfully. Booking ID {} CONFIRMED, Spot ID {} RESERVED.", bookingId, booking.getSpotId());
-            } else {
-                log.error("ParkingSpot not found for ID: {}", booking.getSpotId());
-                Map<String, String> error = new HashMap<>();
-                error.put("message", "Parking spot not found.");
-                return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
             }
 
             return ResponseEntity.ok(Map.of("message", "Payment verified and booking confirmed successfully."));

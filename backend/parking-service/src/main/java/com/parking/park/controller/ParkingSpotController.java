@@ -61,7 +61,7 @@ public class ParkingSpotController {
         }
 
         // Lock verification: query for conflicting overlapping bookings
-        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(15);
+        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(10);
         List<Booking> conflicts = bookingRepository.findOverlappingBookings(id, start, end, lockThreshold);
         if (!conflicts.isEmpty()) {
             Map<String, String> error = new HashMap<>();
@@ -73,8 +73,8 @@ public class ParkingSpotController {
         spot.setStatus("PENDING_PAYMENT");
         spotRepository.save(spot);
 
-        // Calculate payment lock expiration timestamp (15 minutes from now in UTC)
-        LocalDateTime lockExpiresAt = LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(15);
+        // Calculate payment lock expiration timestamp (10 minutes from now in UTC)
+        LocalDateTime lockExpiresAt = LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(10);
         String expiresAtStr = lockExpiresAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "Z";
 
         // Clear local garages nearby search cache
@@ -103,7 +103,7 @@ public class ParkingSpotController {
         response.put("garageId", spot.getGarage().getId());
         response.put("garageName", spot.getGarage().getName());
         response.put("ratePerHour", spot.getGarage().getRatePerHour());
-        response.put("expiresAt", expiresAtStr); // frontend countdown handles 15 min payment lock expiry
+        response.put("expiresAt", expiresAtStr); // frontend countdown handles 10 min payment lock expiry
 
         return ResponseEntity.ok(response);
     }

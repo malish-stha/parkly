@@ -1,14 +1,17 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useSelector } from "react-redux"
+import { RootState } from "@/store/store"
 import { X, Car, Zap, Truck, Banknote, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
 import { GarageSearchDto, ParkingSpotDto, useReserveSpotMutation } from "@/store/apiSlice"
+import { useAuth } from "@clerk/nextjs"
 
 interface SpotSelectorProps {
   garage: GarageSearchDto;
   onClose: () => void;
   onReserve: (resData: { spotId: number; expiresAt: string; bookingId: number; garageId: number }) => void;
-  activeReservationSpotId?: string | null;
+  onPay: (bookingId: number) => void;
   startTime?: string;
   endTime?: string;
 }
@@ -17,11 +20,14 @@ export default function SpotSelector({
   garage,
   onClose,
   onReserve,
-  activeReservationSpotId,
+  onPay,
   startTime,
   endTime
 }: SpotSelectorProps) {
+  const { userId } = useAuth()
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpotDto | null>(null)
+  const activeReservations = useSelector((state: RootState) => state.booking.activeReservations)
+  const [reservedInfo, setReservedInfo] = useState<{ bookingId: number; expiresAt: string; spotId: number; garageId: number } | null>(null)
   const [reserveSpot, { isLoading: isReserving, error: reserveError }] = useReserveSpotMutation()
 
   // Group spots by row letter parsed from the spot number (e.g. A1 -> row A)
@@ -47,11 +53,21 @@ export default function SpotSelector({
     return Object.entries(rowsMap).sort((a, b) => a[0].localeCompare(b[0]))
   }, [garage.spots])
 
-  const isCurrentSpotAvailable = useMemo(() => {
-    if (!selectedSpot) return false
-    const match = garage.spots.find(s => s.id === selectedSpot.id)
-    return match?.status === "AVAILABLE"
+  const currentSpot = useMemo(() => {
+    if (!selectedSpot) return null
+    return garage.spots.find(s => s.id === selectedSpot.id) || selectedSpot
   }, [garage.spots, selectedSpot])
+
+  const isCurrentSpotAvailable = useMemo(() => {
+    return currentSpot?.status === "AVAILABLE"
+  }, [currentSpot])
+
+  const isReservedByMe = useMemo(() => {
+    if (!currentSpot) return false
+    const isReservedInRedux = activeReservations.some(r => r.spotId === String(currentSpot.id))
+    const isReservedInDb = !!(currentSpot.bookedBy && userId && currentSpot.bookedBy === userId)
+    return isReservedInRedux || isReservedInDb
+  }, [currentSpot, activeReservations, userId])
 
   const handleReserveClick = async () => {
     if (!selectedSpot) return
@@ -61,23 +77,26 @@ export default function SpotSelector({
         startTime,
         endTime
       }).unwrap()
-      // Note: the backend ParkingSpotController publishes event to Kafka, and payment-service creates a Booking.
-      // Since it is async, the bookingId will be generated in payment-service.
-      // But parking-service knows the spotId and garageId. We'll pass the response up to start the countdown.
-      // Wait, does the reserve endpoint return the bookingId?
-      // Since the reservation is created asynchronously via Kafka, the response from parking-service won't have the bookingId.
-      // However, we can fetch the active booking from `/bookings/active` or let the frontend know the spotId/expiresAt!
-      // In the controller we returned: spotId, spotNumber, garageId, garageName, ratePerHour, expiresAt.
-      // Let's pass these details to the onReserve callback! We can fetch booking ID dynamically or mock it in Redux.
-      onReserve({
-        spotId: res.spotId,
+      
+      const info = {
+        spotId: Number(res.spotId),
         expiresAt: res.expiresAt,
-        bookingId: res.bookingId || Date.now(), // Fallback mock ID if async lag is present
-        garageId: res.garageId
-      })
+        bookingId: Number(res.bookingId) || Date.now(),
+        garageId: Number(res.garageId)
+      }
+      setReservedInfo(info)
+      onReserve(info)
     } catch (err) {
       console.error("Failed to reserve spot", err)
     }
+  }
+
+  const handlePayClick = () => {
+    if (!currentSpot) return
+    const activeRes = activeReservations.find(r => r.spotId === String(currentSpot.id))
+    const bookingId = reservedInfo?.bookingId || (activeRes ? Number(activeRes.bookingId) : null)
+    if (!bookingId) return
+    onPay(bookingId)
   }
 
   return (
@@ -156,10 +175,10 @@ export default function SpotSelector({
                   {rowSpots.map((spot) => {
                     const isAvailable = spot.status === "AVAILABLE"
                     const isSpotSelected = selectedSpot?.id === spot.id
-                    const isCurrentlyReservedByThisDriver = activeReservationSpotId === String(spot.id)
+                    const isCurrentlyReservedByThisDriver = activeReservations.some(r => r.spotId === String(spot.id)) || !!(spot.bookedBy && userId && spot.bookedBy === userId)
 
-                    let spotStyles = "bg-muted-foreground/5 border-border text-muted-foreground/40 cursor-not-allowed select-none opacity-40"
-                    let icon = <Car className="h-3.5 w-3.5 opacity-30" />
+                    let spotStyles = ""
+                    let icon = <Car className="h-3.5 w-3.5" />
 
                     if (isAvailable) {
                       if (spot.vehicleType === "EV") {
@@ -177,23 +196,32 @@ export default function SpotSelector({
                         spotStyles = "bg-primary/10 border-primary text-primary hover:bg-primary/15 cursor-pointer shadow-[0_0_0_2px_var(--primary)]"
                       }
                     } else {
-                      spotStyles = "bg-muted-foreground/5 border-border text-muted-foreground/40 cursor-pointer opacity-50"
                       if (isCurrentlyReservedByThisDriver) {
-                        spotStyles = "bg-primary/10 border-primary text-primary cursor-not-allowed shadow-[0_0_0_2px_var(--primary)]"
-                      } else if (isSpotSelected) {
-                        spotStyles = "bg-muted-foreground/10 border-primary text-primary cursor-pointer opacity-80 shadow-[0_0_0_2px_var(--primary)]"
+                        spotStyles = "bg-primary/10 border-primary text-primary hover:bg-primary/15 cursor-pointer font-black shadow-[0_0_0_2px_var(--primary)]"
+                        icon = <Car className="h-3.5 w-3.5 text-primary" />
+                      } else {
+                        spotStyles = "bg-muted-foreground/5 border-border text-muted-foreground/30 opacity-30 select-none cursor-pointer"
+                        icon = <Car className="h-3.5 w-3.5 opacity-20" />
+                        if (isSpotSelected) {
+                          spotStyles = "bg-muted-foreground/10 border-primary text-muted-foreground/40 cursor-pointer shadow-[0_0_0_2px_var(--primary)]"
+                        }
                       }
                     }
 
-                    const tooltipText = !isAvailable && spot.bookedUntil
-                      ? `Booked until ${new Date(spot.bookedUntil.endsWith('Z') ? spot.bookedUntil : spot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                      : undefined;
+                    const tooltipText = isCurrentlyReservedByThisDriver
+                      ? (spot.status === "PENDING_PAYMENT" ? `Reserved by you (Pending payment)` : `Booked by you`)
+                      : (!isAvailable && spot.bookedUntil
+                        ? `Booked until ${new Date(spot.bookedUntil.endsWith('Z') ? spot.bookedUntil : spot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        : undefined);
 
                     return (
                       <button
                         key={spot.id}
                         type="button"
-                        onClick={() => setSelectedSpot(spot)}
+                        onClick={() => {
+                          setSelectedSpot(spot)
+                          setReservedInfo(null)
+                        }}
                         title={tooltipText}
                         className={`border p-2 flex flex-col items-center justify-center gap-1.5 transition-all text-[11px] font-bold rounded-none h-14 ${spotStyles}`}
                       >
@@ -211,14 +239,33 @@ export default function SpotSelector({
 
       {/* Drawer Action Footer */}
       <div className="p-6 border-t border-border bg-background space-y-4">
-        {selectedSpot && !isCurrentSpotAvailable && (
+        {currentSpot && !isCurrentSpotAvailable && !isReservedByMe && (
           <div className="border border-amber-500/30 bg-amber-500/5 p-3 text-xs font-semibold text-amber-600 text-center rounded-none animate-in fade-in duration-200">
-            ⚠️ Spot {selectedSpot.spotNumber} is booked until{" "}
+            ⚠️ Spot {currentSpot.spotNumber} is booked until{" "}
             <span className="font-bold text-amber-700">
-              {selectedSpot.bookedUntil
-                ? new Date(selectedSpot.bookedUntil.endsWith('Z') ? selectedSpot.bookedUntil : selectedSpot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              {currentSpot.bookedUntil
+                ? new Date(currentSpot.bookedUntil.endsWith('Z') ? currentSpot.bookedUntil : currentSpot.bookedUntil + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : "the end of the slot"}
             </span>.
+          </div>
+        )}
+
+        {currentSpot && isReservedByMe && currentSpot.status !== "PENDING_PAYMENT" && !reservedInfo && (
+          <div className="border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs font-semibold text-emerald-600 text-center rounded-none animate-in fade-in duration-200">
+            🎉 You have a confirmed booking for Spot {currentSpot.spotNumber}!
+          </div>
+        )}
+
+        {(reservedInfo || (isReservedByMe && currentSpot?.status === "PENDING_PAYMENT")) && (
+          <div className="border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs font-semibold text-emerald-600 text-center rounded-none animate-in fade-in duration-200">
+            ✅ Spot {currentSpot?.spotNumber} successfully reserved until{" "}
+            <span className="font-bold text-emerald-700">
+              {(() => {
+                const activeRes = activeReservations.find(r => r.spotId === String(currentSpot?.id));
+                const exp = reservedInfo?.expiresAt || activeRes?.expiresAt || "";
+                return new Date(exp.endsWith('Z') ? exp : `${exp}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              })()}
+            </span>! Please complete the payment within the time limit.
           </div>
         )}
 
@@ -230,24 +277,43 @@ export default function SpotSelector({
           </div>
         )}
 
-        <button
-          type="button"
-          disabled={!selectedSpot || !isCurrentSpotAvailable || isReserving}
-          onClick={handleReserveClick}
-          className="w-full h-11 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer rounded-none text-sm"
-        >
-          {isReserving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Connecting to eSewa...</span>
-            </>
-          ) : (
-            <>
-              <span>Pay & Confirm {selectedSpot ? `- Spot ${selectedSpot.spotNumber}` : ""}</span>
-              <ArrowRight className="h-4 w-4" />
-            </>
-          )}
-        </button>
+        {currentSpot && isReservedByMe && currentSpot.status !== "PENDING_PAYMENT" && !reservedInfo ? (
+          <button
+            type="button"
+            disabled
+            className="w-full h-11 flex items-center justify-center gap-2 bg-emerald-600 text-white font-semibold opacity-80 cursor-not-allowed rounded-none text-sm"
+          >
+            <span>Booking Confirmed</span>
+          </button>
+        ) : !(reservedInfo || (isReservedByMe && currentSpot?.status === "PENDING_PAYMENT")) ? (
+          <button
+            type="button"
+            disabled={!currentSpot || !isCurrentSpotAvailable || isReserving}
+            onClick={handleReserveClick}
+            className="w-full h-11 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer rounded-none text-sm"
+          >
+            {isReserving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Reserving Spot...</span>
+              </>
+            ) : (
+              <>
+                <span>Confirm Reservation {currentSpot ? `- Spot ${currentSpot.spotNumber}` : ""}</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handlePayClick}
+            className="w-full h-11 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors cursor-pointer rounded-none text-sm animate-in zoom-in-95 duration-200"
+          >
+            <span>Proceed to eSewa Payment</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   )

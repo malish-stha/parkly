@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface Reservation {
+export interface Reservation {
   bookingId: string;
   spotId: string;
   garageId: string;
@@ -9,11 +9,11 @@ interface Reservation {
 }
 
 interface BookingState {
-  activeReservation: Reservation | null;
+  activeReservations: Reservation[];
 }
 
 const initialState: BookingState = {
-  activeReservation: null,
+  activeReservations: [],
 };
 
 const bookingSlice = createSlice({
@@ -27,22 +27,32 @@ const bookingSlice = createSlice({
       const now = new Date().getTime();
       const secondsRemaining = Math.max(0, Math.floor((expiresTime - now) / 1000));
       
-      state.activeReservation = {
+      const newRes = {
         ...action.payload,
         secondsRemaining,
       };
+
+      const idx = state.activeReservations.findIndex(r => r.bookingId === newRes.bookingId);
+      if (idx >= 0) {
+        state.activeReservations[idx] = newRes;
+      } else {
+        state.activeReservations.push(newRes);
+      }
     },
-    clearReservation: (state) => {
-      state.activeReservation = null;
+    clearReservation: (state, action: PayloadAction<string | undefined>) => {
+      if (action.payload) {
+        state.activeReservations = state.activeReservations.filter(r => r.bookingId !== action.payload);
+      } else {
+        state.activeReservations = [];
+      }
     },
     tickTimer: (state) => {
-      if (state.activeReservation) {
-        if (state.activeReservation.secondsRemaining > 0) {
-          state.activeReservation.secondsRemaining -= 1;
-        } else {
-          state.activeReservation = null; // Automatically clear on expiry
-        }
-      }
+      state.activeReservations = state.activeReservations
+        .map(r => ({
+          ...r,
+          secondsRemaining: r.secondsRemaining - 1
+        }))
+        .filter(r => r.secondsRemaining > 0);
     },
   },
 });

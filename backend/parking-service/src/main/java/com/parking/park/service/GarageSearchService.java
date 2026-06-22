@@ -34,7 +34,7 @@ public class GarageSearchService {
                 .map(ParkingSpot::getId)
                 .collect(Collectors.toList());
 
-        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(15);
+        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(10);
         
         List<Booking> conflicts = spotIds.isEmpty() ? List.of() :
                 bookingRepository.findOverlappingBookingsForSpots(spotIds, startTime, endTime, lockThreshold);
@@ -60,6 +60,7 @@ public class GarageSearchService {
                                     if (conflict.getEndTime() != null) {
                                         s.setBookedUntil(conflict.getEndTime().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME));
                                     }
+                                    s.setBookedBy(conflict.getDriverId());
                                 } else {
                                     s.setStatus("RESERVED");
                                 }

@@ -34,7 +34,7 @@ public class BookingExpirySweeper {
     @Transactional
     public void sweepExpiredBookings() {
         LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
-        List<Booking> expiredBookings = bookingRepository.findByStatusAndCreatedAtBefore("PENDING_PAYMENT", now.minusMinutes(15));
+        List<Booking> expiredBookings = bookingRepository.findByStatusAndCreatedAtBefore("PENDING_PAYMENT", now.minusMinutes(10));
 
         if (!expiredBookings.isEmpty()) {
             log.info("Found {} expired pending bookings. Processing release...", expiredBookings.size());

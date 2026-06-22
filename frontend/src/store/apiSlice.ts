@@ -21,6 +21,7 @@ export interface ParkingSpotDto {
   vehicleType: "STANDARD" | "EV" | "SUV";
   status: "AVAILABLE" | "PENDING_PAYMENT" | "RESERVED" | "OCCUPIED";
   bookedUntil?: string;
+  bookedBy?: string;
 }
 
 export interface GarageSearchDto {
@@ -116,9 +117,9 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
-    initiateEsewaPayment: builder.mutation<any, { bookingId: number }>({
-      query: ({ bookingId }) => ({
-        url: `/payments/esewa/initiate?bookingId=${bookingId}`,
+    initiateEsewaPayment: builder.mutation<any, { bookingIds: string }>({
+      query: ({ bookingIds }) => ({
+        url: `/payments/esewa/initiate?bookingIds=${encodeURIComponent(bookingIds)}`,
         method: "POST",
       }),
     }),

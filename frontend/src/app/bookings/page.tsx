@@ -72,7 +72,7 @@ export default function BookingsHistoryPage() {
   // Handle direct payment for pending bookings
   const handlePayNow = async (bookingId: number) => {
     try {
-      const esewaPayload = await initiateEsewaPayment({ bookingId }).unwrap()
+      const esewaPayload = await initiateEsewaPayment({ bookingIds: String(bookingId) }).unwrap()
       if (esewaPayload && esewaPayload.esewa_url) {
         const form = document.createElement("form")
         form.method = "POST"

@@ -32,9 +32,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
@@ -64,12 +64,12 @@ function SearchPageContent() {
   const dispatch = useDispatch()
 
   // Redux booking state selectors
-  const activeReservation = useSelector((state: RootState) => state.booking.activeReservation)
-  
+  const activeReservations = useSelector((state: RootState) => state.booking.activeReservations)
+
   // Search state
   const [center, setCenter] = useState({ lat: 27.7172, lng: 85.3240 }) // Default Kathmandu center
   const [radius, setRadius] = useState(5.0) // 5km search radius
-  
+
   // Booking start/end time range state (local time inputs)
   const [startTimeLocal, setStartTimeLocal] = useState(() => {
     const now = new Date()
@@ -99,7 +99,7 @@ function SearchPageContent() {
       return ""
     }
   }, [endTimeLocal])
-  
+
   // Filters & Sorting state
   const [filterVehicle, setFilterVehicle] = useState<"STANDARD" | "EV" | "SUV" | "ALL">("ALL")
   const [sortBy, setSortBy] = useState<"PRICE" | "DISTANCE" | "SPOTS">("DISTANCE")
@@ -130,67 +130,75 @@ function SearchPageContent() {
 
   // 1. Initial Page Load / Query response Active Reservation Restore & Sync
   useEffect(() => {
-    if (activeBookingDb) {
-      if (activeBookingDb.status === "PENDING_PAYMENT" && !paymentSuccess) {
-        const dbBookingId = String(activeBookingDb.id);
-        
-        // Guard: Do not restore if the expiration time is already in the past relative to the browser clock,
-        // or if it is on the verge of expiring (within 2 seconds) to prevent restoration loops.
-        const expiresTime = new Date(activeBookingDb.endTime.endsWith('Z') ? activeBookingDb.endTime : activeBookingDb.endTime + 'Z').getTime();
-        const now = new Date().getTime();
-        if (expiresTime - now <= 2000) {
-          return;
+    if (Array.isArray(activeBookingDb)) {
+      const dbPendingBookingIds = activeBookingDb
+        .filter(b => b.status === "PENDING_PAYMENT")
+        .map(b => String(b.id));
+
+      activeBookingDb.forEach(b => {
+        if (b.status === "PENDING_PAYMENT" && !paymentSuccess) {
+          const dbBookingId = String(b.id);
+          const createdTime = new Date(b.createdAt.endsWith('Z') ? b.createdAt : b.createdAt + 'Z').getTime();
+          const expiresTime = createdTime + 10 * 60 * 1000;
+          const now = new Date().getTime();
+          if (expiresTime - now <= 2000) {
+            return;
+          }
+
+          const existing = activeReservations.find(r => r.bookingId === dbBookingId);
+          if (!existing || existing.bookingId.startsWith("temp-")) {
+            dispatch(
+              setReservation({
+                bookingId: dbBookingId,
+                spotId: String(b.spotId),
+                garageId: String(b.garageId),
+                expiresAt: new Date(expiresTime).toISOString()
+              })
+            )
+          }
         }
-        
-        // Restore or sync booking ID once Kafka processes the request
-        if (
-          !activeReservation || 
-          activeReservation.bookingId.startsWith("temp-") || 
-          activeReservation.bookingId !== dbBookingId
-        ) {
-          dispatch(
-            setReservation({
-              bookingId: dbBookingId,
-              spotId: String(activeBookingDb.spotId),
-              garageId: String(activeBookingDb.garageId),
-              expiresAt: activeBookingDb.endTime
-            })
-          )
+      });
+
+      // Clean up reservations that are confirmed or no longer active.
+      // Guard: If the reservation was just created (has > 595 seconds remaining out of the 10 min hold),
+      // we bypass clearing it to allow the activeBookingDb query time to resolve and catch up.
+      activeReservations.forEach(r => {
+        if (!dbPendingBookingIds.includes(r.bookingId)) {
+          if (r.secondsRemaining > 595) {
+            return;
+          }
+          dispatch(clearReservation(r.bookingId));
         }
-      } else if (activeBookingDb.status === "CONFIRMED") {
-        // If DB has confirmed the booking, clear any stale frontend reservation banners
-        if (activeReservation) {
-          dispatch(clearReservation())
-        }
-      }
+      });
     }
-  }, [activeBookingDb, activeReservation, paymentSuccess, dispatch])
+  }, [activeBookingDb, activeReservations, paymentSuccess, dispatch])
 
   // 2. Timer Countdown Tick hook
   useEffect(() => {
-    if (!activeReservation) return
+    if (activeReservations.length === 0) return
 
     const interval = setInterval(() => {
       dispatch(tickTimer())
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [activeReservation, dispatch])
+  }, [activeReservations.length, dispatch])
 
   // 3. Poll active booking if we currently only have a temporary reservation ID (waiting for Kafka propagation)
   useEffect(() => {
-    if (!activeReservation || !activeReservation.bookingId.startsWith("temp-")) return
+    const hasTemp = activeReservations.some(r => r.bookingId.startsWith("temp-"))
+    if (!hasTemp) return
 
     const interval = setInterval(() => {
       refetchActiveBooking()
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [activeReservation, refetchActiveBooking])
+  }, [activeReservations, refetchActiveBooking])
 
   // 4. Trigger list and map updates when spots release or confirm
   useEffect(() => {
-    if (activeReservation) {
+    if (activeReservations.length > 0) {
       wasActiveRef.current = true
     } else if (wasActiveRef.current) {
       // Reservation transitioned from active to null (expired or cleared)
@@ -198,7 +206,7 @@ function SearchPageContent() {
       refetchGarages()
       refetchActiveBooking()
     }
-  }, [activeReservation, refetchGarages, refetchActiveBooking])
+  }, [activeReservations.length, refetchGarages, refetchActiveBooking])
 
   // 5. eSewa Payment Callback Verification
   const hasVerifiedRef = useRef(false)
@@ -263,10 +271,11 @@ function SearchPageContent() {
     setCenter({ lat: garage.latitude, lng: garage.longitude })
   }
 
-  const handleConfirmPayment = async () => {
-    if (!activeReservation || activeReservation.bookingId.startsWith("temp-")) return
+  const handleConfirmPayment = async (customBookingIds?: string) => {
+    const targetBookingIds = customBookingIds || activeReservations.map(r => r.bookingId).join(",")
+    if (!targetBookingIds || targetBookingIds.startsWith("temp-")) return
     try {
-      const esewaPayload = await initiateEsewaPayment({ bookingId: Number(activeReservation.bookingId) }).unwrap()
+      const esewaPayload = await initiateEsewaPayment({ bookingIds: targetBookingIds }).unwrap()
       if (esewaPayload && esewaPayload.esewa_url) {
         // Dynamically create and submit POST form to eSewa endpoint
         const form = document.createElement("form")
@@ -334,6 +343,69 @@ function SearchPageContent() {
         </div>
       )}
 
+      {activeReservations.length > 0 && (
+        (() => {
+          // Find earliest expiration reservation (minimum secondsRemaining)
+          const sorted = [...activeReservations].sort((a, b) => a.secondsRemaining - b.secondsRemaining);
+          const earliestRes = sorted[0];
+          
+          // Get comma-separated list of booking IDs
+          const allBookingIds = activeReservations.map(r => r.bookingId).join(",");
+          
+          // Resolve spot numbers
+          const spotNumbers = activeReservations.map(r => {
+            for (const g of rawGarages) {
+              const match = g.spots?.find(s => String(s.id) === r.spotId);
+              if (match) return match.spotNumber;
+            }
+            return `#${r.spotId}`;
+          }).join(", ");
+
+          // Calculate total base amount by matching booking records
+          const totalAmount = activeBookingDb && Array.isArray(activeBookingDb) 
+            ? activeBookingDb
+                .filter(b => b.status === "PENDING_PAYMENT" && activeReservations.some(r => r.bookingId === String(b.id)))
+                .reduce((sum, b) => sum + b.baseAmount, 0)
+            : activeReservations.length * 10; // fallback if db is loading
+
+          return (
+            <div className="backdrop-blur-md bg-amber-500/10 dark:bg-amber-500/10 border-b border-amber-500/20 dark:border-amber-500/30 px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold text-amber-800 dark:text-amber-200 shrink-0 animate-in slide-in-from-top duration-300 rounded-none shadow-[inset_0_1px_0_0_rgba(251,191,36,0.1)]">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500/30 opacity-75"></span>
+                  <Clock className="h-3.5 w-3.5 relative" />
+                </div>
+                <span className="text-amber-900 dark:text-amber-300 text-[11px] font-semibold">
+                  Pending Reservations: Spots <span className="font-mono bg-amber-500/20 dark:bg-amber-500/30 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">{spotNumbers}</span> are held. Must pay before <span className="font-extrabold text-amber-950 dark:text-amber-100">{new Date(earliestRes.expiresAt.endsWith('Z') ? earliestRes.expiresAt : earliestRes.expiresAt + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>.
+                  <span className="mx-2 text-amber-500/30 font-light">|</span>
+                  Total: <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalAmount} NPR</span>
+                  <span className="mx-2 text-amber-500/30 font-light">|</span>
+                  Time remaining:{" "}
+                  <span className="font-mono bg-amber-500 text-white dark:bg-amber-600 dark:text-white px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm inline-block animate-pulse">
+                    {Math.floor(earliestRes.secondsRemaining / 60)}:
+                    {String(earliestRes.secondsRemaining % 60).padStart(2, "0")}
+                  </span>
+                </span>
+              </div>
+              <button
+                onClick={() => handleConfirmPayment(allBookingIds)}
+                disabled={isRedirecting}
+                className="self-start sm:self-center h-8 px-4 flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold transition-all duration-200 cursor-pointer rounded-full text-[10px] uppercase tracking-wider shadow-md shadow-amber-500/20 hover:shadow-amber-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 shrink-0"
+              >
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>Pay {totalAmount} NPR with eSewa</span>
+                )}
+              </button>
+            </div>
+          );
+        })()
+      )}
+
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         <SearchSidebar
@@ -378,15 +450,11 @@ function SearchPageContent() {
         {selectedGarage && (
           <SpotSelector
             garage={selectedGarage}
-            activeReservationSpotId={activeReservation?.spotId}
             onClose={() => setSelectedGarageId(null)}
             startTime={startTimeUtc}
             endTime={endTimeUtc}
-            onReserve={async (res) => {
-              // Close the spot selector drawer
-              setSelectedGarageId(null)
-              
-              // Store reservation details in Redux using the actual bookingId
+            onReserve={(res) => {
+              // Store reservation details in Redux
               dispatch(
                 setReservation({
                   bookingId: String(res.bookingId),
@@ -396,31 +464,12 @@ function SearchPageContent() {
                 })
               )
               refetchGarages()
-
-              // Immediately initiate eSewa payment and redirect
-              try {
-                const esewaPayload = await initiateEsewaPayment({ bookingId: Number(res.bookingId) }).unwrap()
-                if (esewaPayload && esewaPayload.esewa_url) {
-                  const form = document.createElement("form")
-                  form.method = "POST"
-                  form.action = esewaPayload.esewa_url
-
-                  Object.entries(esewaPayload).forEach(([key, val]) => {
-                    if (key !== "esewa_url") {
-                      const hiddenField = document.createElement("input")
-                      hiddenField.type = "hidden"
-                      hiddenField.name = key
-                      hiddenField.value = String(val)
-                      form.appendChild(hiddenField)
-                    }
-                  })
-
-                  document.body.appendChild(form)
-                  form.submit()
-                }
-              } catch (err) {
-                console.error("eSewa payment initiation failed", err)
-              }
+              refetchActiveBooking()
+            }}
+            onPay={async (bookingId) => {
+              // Close drawers and proceed to checkout redirect
+              setSelectedGarageId(null)
+              await handleConfirmPayment(String(bookingId))
             }}
           />
         )}

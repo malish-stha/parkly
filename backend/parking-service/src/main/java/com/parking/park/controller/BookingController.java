@@ -82,13 +82,7 @@ public class BookingController {
         log.info("Fetching active booking for user ID: {}", userId);
 
         List<Booking> activeBookings = bookingRepository.findByDriverIdAndStatusIn(userId, List.of("PENDING_PAYMENT", "CONFIRMED"));
-        if (activeBookings.isEmpty()) {
-            return ResponseEntity.ok(new HashMap<>()); // Return empty object if no active bookings
-        }
-
-        // Return the first/most recent active booking
-        Booking active = activeBookings.get(activeBookings.size() - 1);
-        return ResponseEntity.ok(active);
+        return ResponseEntity.ok(activeBookings);
     }
 
     @GetMapping

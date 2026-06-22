@@ -9,6 +9,7 @@ public class ParkingSpotSearchDto implements Serializable {
     private String vehicleType;
     private String status;
     private String bookedUntil;
+    private String bookedBy;
 
     public ParkingSpotSearchDto() {}
 
@@ -18,6 +19,7 @@ public class ParkingSpotSearchDto implements Serializable {
         this.vehicleType = spot.getVehicleType();
         this.status = spot.getStatus();
         this.bookedUntil = null;
+        this.bookedBy = null;
     }
 
     // Getters and Setters
@@ -35,4 +37,7 @@ public class ParkingSpotSearchDto implements Serializable {
 
     public String getBookedUntil() { return bookedUntil; }
     public void setBookedUntil(String bookedUntil) { this.bookedUntil = bookedUntil; }
+
+    public String getBookedBy() { return bookedBy; }
+    public void setBookedBy(String bookedBy) { this.bookedBy = bookedBy; }
 }
