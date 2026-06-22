@@ -14,6 +14,7 @@ public class GarageSearchDto implements Serializable {
     private double ratePerHour;
     private String imageUrl;
     private String ownerId;
+    private boolean featured;
     private List<ParkingSpotSearchDto> spots;
 
     public GarageSearchDto() {}
@@ -27,6 +28,7 @@ public class GarageSearchDto implements Serializable {
         this.ratePerHour = garage.getRatePerHour();
         this.imageUrl = garage.getImageUrl();
         this.ownerId = garage.getOwnerId();
+        this.featured = garage.isFeatured();
         this.spots = garage.getSpots().stream()
                 .map(ParkingSpotSearchDto::new)
                 .collect(Collectors.toList());
@@ -56,6 +58,9 @@ public class GarageSearchDto implements Serializable {
 
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+
+    public boolean isFeatured() { return featured; }
+    public void setFeatured(boolean featured) { this.featured = featured; }
 
     public List<ParkingSpotSearchDto> getSpots() { return spots; }
     public void setSpots(List<ParkingSpotSearchDto> spots) { this.spots = spots; }

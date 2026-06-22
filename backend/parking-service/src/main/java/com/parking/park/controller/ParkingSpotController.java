@@ -26,13 +26,16 @@ public class ParkingSpotController {
     private final ParkingSpotRepository spotRepository;
     private final GarageService garageService;
     private final BookingRepository bookingRepository;
+    private final com.parking.park.repository.UserSubscriptionRepository subscriptionRepository;
 
     public ParkingSpotController(ParkingSpotRepository spotRepository,
                                  GarageService garageService,
-                                 BookingRepository bookingRepository) {
+                                 BookingRepository bookingRepository,
+                                 com.parking.park.repository.UserSubscriptionRepository subscriptionRepository) {
         this.spotRepository = spotRepository;
         this.garageService = garageService;
         this.bookingRepository = bookingRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @PostMapping("/{id}/reserve")
@@ -60,9 +63,16 @@ public class ParkingSpotController {
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
         }
 
-        // Lock verification: query for conflicting overlapping bookings
-        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(10);
-        List<Booking> conflicts = bookingRepository.findOverlappingBookings(id, start, end, lockThreshold);
+        // Check user subscription type
+        boolean isGold = subscriptionRepository.findByUserId(userId)
+                .map(sub -> "DRIVER_GOLD".equals(sub.getSubscriptionType()) && "ACTIVE".equals(sub.getStatus()))
+                .orElse(false);
+
+        int holdMinutes = isGold ? 30 : 10;
+
+        // Lock verification: query for conflicting overlapping bookings using current time as bounds check
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
+        List<Booking> conflicts = bookingRepository.findOverlappingBookings(id, start, end, now);
         if (!conflicts.isEmpty()) {
             Map<String, String> error = new HashMap<>();
             error.put("message", "This spot is already reserved or booked for the selected time slot.");
@@ -73,23 +83,27 @@ public class ParkingSpotController {
         spot.setStatus("PENDING_PAYMENT");
         spotRepository.save(spot);
 
-        // Calculate payment lock expiration timestamp (10 minutes from now in UTC)
-        LocalDateTime lockExpiresAt = LocalDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(10);
+        // Calculate payment lock expiration timestamp
+        LocalDateTime lockExpiresAt = now.plusMinutes(holdMinutes);
         String expiresAtStr = lockExpiresAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "Z";
 
         // Clear local garages nearby search cache
         garageService.evictSearchCache();
+
+        double rawRate = spot.getGarage().getRatePerHour();
+        double finalRate = isGold ? (rawRate * 0.90) : rawRate;
 
         // Save Booking directly in database with the requested slot times
         Booking booking = new Booking(
             userId,
             spot.getGarage().getId(),
             spot.getId(),
-            spot.getGarage().getRatePerHour(),
+            finalRate,
             "PENDING_PAYMENT",
             start,
             end,
-            LocalDateTime.now(java.time.ZoneOffset.UTC)
+            now,
+            lockExpiresAt
         );
         Booking savedBooking = bookingRepository.save(booking);
         log.info("Registered PENDING_PAYMENT booking directly. ID: {}, Spot ID: {}, Driver ID: {}", 

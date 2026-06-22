@@ -10,10 +10,11 @@ public class GarageStatsDto implements Serializable {
     private double ratePerHour;
     private double earnings;
     private int bookingsCount;
+    private String ownerId;
 
     public GarageStatsDto() {}
 
-    public GarageStatsDto(Long garageId, String garageName, String garageAddress, int totalSpots, double ratePerHour, double earnings, int bookingsCount) {
+    public GarageStatsDto(Long garageId, String garageName, String garageAddress, int totalSpots, double ratePerHour, double earnings, int bookingsCount, String ownerId) {
         this.garageId = garageId;
         this.garageName = garageName;
         this.garageAddress = garageAddress;
@@ -21,6 +22,7 @@ public class GarageStatsDto implements Serializable {
         this.ratePerHour = ratePerHour;
         this.earnings = earnings;
         this.bookingsCount = bookingsCount;
+        this.ownerId = ownerId;
     }
 
     // Getters and Setters
@@ -44,4 +46,7 @@ public class GarageStatsDto implements Serializable {
 
     public int getBookingsCount() { return bookingsCount; }
     public void setBookingsCount(int bookingsCount) { this.bookingsCount = bookingsCount; }
+
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 }

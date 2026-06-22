@@ -35,6 +35,9 @@ public class Booking {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     public Booking() {}
 
     public Booking(String driverId, Long garageId, Long spotId, double baseAmount, String status, LocalDateTime startTime, LocalDateTime endTime, LocalDateTime createdAt) {
@@ -46,6 +49,18 @@ public class Booking {
         this.startTime = startTime;
         this.endTime = endTime;
         this.createdAt = createdAt;
+    }
+
+    public Booking(String driverId, Long garageId, Long spotId, double baseAmount, String status, LocalDateTime startTime, LocalDateTime endTime, LocalDateTime createdAt, LocalDateTime expiresAt) {
+        this.driverId = driverId;
+        this.garageId = garageId;
+        this.spotId = spotId;
+        this.baseAmount = baseAmount;
+        this.status = status;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.createdAt = createdAt;
+        this.expiresAt = expiresAt;
     }
 
     // Getters and Setters
@@ -75,4 +90,7 @@ public class Booking {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 }

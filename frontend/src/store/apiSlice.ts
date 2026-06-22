@@ -13,6 +13,8 @@ export interface GaragePayload {
   ratePerHour: number;
   imageUrl: string;
   spots: SpotConfig[];
+  dynamicPricingEnabled?: boolean;
+  featured?: boolean;
 }
 
 export interface ParkingSpotDto {
@@ -34,6 +36,8 @@ export interface GarageSearchDto {
   imageUrl: string;
   ownerId: string;
   spots: ParkingSpotDto[];
+  featured?: boolean;
+  dynamicPricingEnabled?: boolean;
 }
 
 export interface AISearchResponse {
@@ -179,6 +183,36 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
+    getSubscriptionStatus: builder.query<{ type: "FREE" | "DRIVER_GOLD" | "OWNER_PRO"; status: string; endDate?: string }, void>({
+      query: () => ({
+        url: "/subscriptions/status",
+        method: "GET",
+      }),
+    }),
+    upgradeSubscription: builder.mutation<{ type: string; status: string; endDate?: string }, { type: "FREE" | "DRIVER_GOLD" | "OWNER_PRO" }>({
+      query: ({ type }) => ({
+        url: `/subscriptions/upgrade?type=${type}`,
+        method: "POST",
+      }),
+    }),
+    getGarageStaff: builder.query<any[], number>({
+      query: (garageId) => ({
+        url: `/owner/garages/${garageId}/staff`,
+        method: "GET",
+      }),
+    }),
+    addGarageStaff: builder.mutation<any, { garageId: number; staffUserId: string }>({
+      query: ({ garageId, staffUserId }) => ({
+        url: `/owner/garages/${garageId}/staff?staffUserId=${encodeURIComponent(staffUserId)}`,
+        method: "POST",
+      }),
+    }),
+    removeGarageStaff: builder.mutation<any, { garageId: number; staffUserId: string }>({
+      query: ({ garageId, staffUserId }) => ({
+        url: `/owner/garages/${garageId}/staff/${staffUserId}`,
+        method: "DELETE",
+      }),
+    }),
   }),
 })
 
@@ -190,6 +224,7 @@ export interface GarageStatsDto {
   ratePerHour: number;
   earnings: number;
   bookingsCount: number;
+  ownerId?: string;
 }
 
 export interface OwnerAnalyticsDto {
@@ -213,6 +248,12 @@ export const {
   useVerifyEsewaPaymentMutation,
   useGetBookingsHistoryQuery,
   useGetOwnerAnalyticsQuery,
-  useLazyAiSearchGaragesQuery
+  useLazyAiSearchGaragesQuery,
+  useGetSubscriptionStatusQuery,
+  useUpgradeSubscriptionMutation,
+  useGetGarageStaffQuery,
+  useAddGarageStaffMutation,
+  useRemoveGarageStaffMutation
 } = apiSlice
+
 

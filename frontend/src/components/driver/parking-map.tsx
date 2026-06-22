@@ -137,7 +137,7 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
   })
 
   // Custom sharp green map pin representing parking garage
-  const createOccupancyIcon = (openSpots: number, totalSpots: number, isSelected: boolean) => {
+  const createOccupancyIcon = (openSpots: number, totalSpots: number, isSelected: boolean, featured?: boolean) => {
     const occupancyPercent = totalSpots > 0 ? (openSpots / totalSpots) * 100 : 0
     
     let color = "#10b981" // Emerald Green (Available)
@@ -153,6 +153,35 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
       ? "transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6)) drop-shadow(0 4px 10px rgba(0,0,0,0.3)); border-color: #3b82f6;" 
       : "filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));"
 
+    const borderStyle = featured 
+      ? "border: 2.5px solid #d97706; box-shadow: 0 0 10px #d97706, 0 4px 8px rgba(0,0,0,0.3);" 
+      : `border: 2px solid ${border};`
+
+    const starBadgeHtml = featured 
+      ? `
+        <div style="
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #d97706;
+          border: 1px solid #ffffff;
+          border-radius: 50%;
+          width: 14px;
+          height: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8px;
+          color: #ffffff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          z-index: 20;
+        ">
+          ★
+        </div>
+      `
+      : ""
+
     return L.divIcon({
       className: "custom-garage-pin",
       html: `
@@ -162,7 +191,7 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
           height: 32px;
           border-radius: 50%;
           background-color: ${color};
-          border: 2px solid ${border};
+          ${borderStyle}
           display: flex;
           align-items: center;
           justify-content: center;
@@ -176,6 +205,8 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
         " class="hover:scale-110 select-none">
           G
           
+          ${starBadgeHtml}
+
           <!-- Numeric Availability Badge -->
           <div style="
             position: absolute;
@@ -248,12 +279,11 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
           const totalSpots = garage.spots?.length || 0
           const openSpots = garage.spots?.filter(s => s.status === "AVAILABLE").length || 0
           const isSelected = selectedGarageId === garage.id
-
           return (
             <Marker
               key={garage.id}
               position={[garage.latitude, garage.longitude]}
-              icon={createOccupancyIcon(openSpots, totalSpots, isSelected)}
+              icon={createOccupancyIcon(openSpots, totalSpots, isSelected, garage.featured)}
               zIndexOffset={isSelected ? 500 : 10}
               eventHandlers={{
                 click: () => onSelectGarage(garage)
@@ -261,7 +291,14 @@ export default function ParkingMap({ center, radius, garages, selectedGarageId, 
             >
               <Popup className="custom-popup rounded-none">
                 <div className="p-1 space-y-1 font-sans">
-                  <h3 className="font-bold text-sm text-foreground">{garage.name}</h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-sm text-foreground">{garage.name}</h3>
+                    {garage.featured && (
+                      <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shrink-0 select-none">
+                        ⭐ Featured
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{garage.address}</p>
                   <div className="flex justify-between items-center text-xs pt-1 border-t border-border mt-2">
                     <span className="font-semibold text-emerald-500">{garage.ratePerHour} NPR/hr</span>

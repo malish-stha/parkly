@@ -279,7 +279,14 @@ export default function SearchSidebar({
                 {/* Details */}
                 <div className="flex-1 min-w-0 space-y-1.5 flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-sm text-foreground truncate">{garage.name}</h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-sm text-foreground truncate">{garage.name}</h3>
+                      {garage.featured && (
+                        <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shrink-0 flex items-center gap-0.5 select-none">
+                          ⭐ Featured
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate">{garage.address}</p>
                   </div>
 

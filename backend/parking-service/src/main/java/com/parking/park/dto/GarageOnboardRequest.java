@@ -10,6 +10,8 @@ public class GarageOnboardRequest {
     private double ratePerHour;
     private String imageUrl;
     private List<SpotLayoutConfig> spots;
+    private boolean dynamicPricingEnabled;
+    private boolean featured;
 
     public GarageOnboardRequest() {}
 
@@ -34,4 +36,10 @@ public class GarageOnboardRequest {
 
     public List<SpotLayoutConfig> getSpots() { return spots; }
     public void setSpots(List<SpotLayoutConfig> spots) { this.spots = spots; }
+
+    public boolean isDynamicPricingEnabled() { return dynamicPricingEnabled; }
+    public void setDynamicPricingEnabled(boolean dynamicPricingEnabled) { this.dynamicPricingEnabled = dynamicPricingEnabled; }
+
+    public boolean isFeatured() { return featured; }
+    public void setFeatured(boolean featured) { this.featured = featured; }
 }

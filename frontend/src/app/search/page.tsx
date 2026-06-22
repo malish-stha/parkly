@@ -4,12 +4,12 @@ import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle, Sparkles } from "lucide-react"
+import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle, Sparkles, Crown } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import SearchSidebar from "@/components/driver/search-sidebar"
 import SpotSelector from "@/components/driver/spot-selector"
 import AIAssistant from "@/components/driver/ai-assistant"
-import { useSearchGaragesQuery, GarageSearchDto, useInitiateEsewaPaymentMutation, useVerifyEsewaPaymentMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
+import { useSearchGaragesQuery, GarageSearchDto, useInitiateEsewaPaymentMutation, useVerifyEsewaPaymentMutation, useGetActiveBookingQuery, useGetSubscriptionStatusQuery } from "@/store/apiSlice"
 import { UserButton, useAuth } from "@clerk/nextjs"
 import { useDispatch, useSelector } from "react-redux"
 import { RootState } from "@/store/store"
@@ -124,6 +124,9 @@ function SearchPageContent() {
     skip: !isLoaded || !userId,
     refetchOnMountOrArgChange: true
   })
+  const { data: subStatus } = useGetSubscriptionStatusQuery(undefined, {
+    skip: !isLoaded || !userId,
+  })
   const [initiateEsewaPayment, { isLoading: isRedirecting }] = useInitiateEsewaPaymentMutation()
   const [verifyEsewaPayment, { isLoading: isVerifying }] = useVerifyEsewaPaymentMutation()
   const [paymentSuccess, setPaymentSuccess] = useState(false)
@@ -142,7 +145,9 @@ function SearchPageContent() {
         if (b.status === "PENDING_PAYMENT" && !paymentSuccess) {
           const dbBookingId = String(b.id);
           const createdTime = new Date(b.createdAt.endsWith('Z') ? b.createdAt : b.createdAt + 'Z').getTime();
-          const expiresTime = createdTime + 10 * 60 * 1000;
+          const expiresTime = b.expiresAt
+            ? new Date(b.expiresAt.endsWith('Z') ? b.expiresAt : b.expiresAt + 'Z').getTime()
+            : createdTime + 10 * 60 * 1000;
           const now = new Date().getTime();
           if (expiresTime - now <= 2000) {
             return;
@@ -163,11 +168,12 @@ function SearchPageContent() {
       });
 
       // Clean up reservations that are confirmed or no longer active.
-      // Guard: If the reservation was just created (has > 595 seconds remaining out of the 10 min hold),
+      // Guard: If the reservation was just created (has > 595 seconds remaining),
       // we bypass clearing it to allow the activeBookingDb query time to resolve and catch up.
       activeReservations.forEach(r => {
         if (!dbPendingBookingIds.includes(r.bookingId)) {
-          if (r.secondsRemaining > 595) {
+          const maxHoldSeconds = subStatus?.type === "DRIVER_GOLD" ? 1800 : 600;
+          if (r.secondsRemaining > (maxHoldSeconds - 5)) {
             return;
           }
           dispatch(clearReservation(r.bookingId));
@@ -385,16 +391,30 @@ function SearchPageContent() {
                   <Clock className="h-3.5 w-3.5 relative" />
                 </div>
                 <div className="text-amber-900 dark:text-amber-300 text-[11px] font-semibold space-y-1">
-                  <div>
-                    Pending Reservations: Spots <span className="font-mono bg-amber-500/20 dark:bg-amber-500/30 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">{spotNumbers}</span> are held. Must pay before <span className="font-extrabold text-amber-950 dark:text-amber-100">{new Date(earliestRes.expiresAt.endsWith('Z') ? earliestRes.expiresAt : earliestRes.expiresAt + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>.
-                    <span className="mx-2 text-amber-500/30 font-light">|</span>
-                    Total: <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalAmount} NPR</span>
-                    <span className="mx-2 text-amber-500/30 font-light">|</span>
-                    Time remaining:{" "}
-                    <span className="font-mono bg-amber-500 text-white dark:bg-amber-600 dark:text-white px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm inline-block animate-pulse">
-                      {Math.floor(earliestRes.secondsRemaining / 60)}:
-                      {String(earliestRes.secondsRemaining % 60).padStart(2, "0")}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      Pending Reservations: Spots <span className="font-mono bg-amber-500/20 dark:bg-amber-500/30 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">{spotNumbers}</span> are held. Must pay before <span className="font-extrabold text-amber-950 dark:text-amber-100">{new Date(earliestRes.expiresAt.endsWith('Z') ? earliestRes.expiresAt : earliestRes.expiresAt + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>.
                     </span>
+                    <span className="text-amber-500/30 font-light">|</span>
+                    <span>
+                      Total: <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalAmount} NPR</span>
+                    </span>
+                    <span className="text-amber-500/30 font-light">|</span>
+                    <span className="flex items-center gap-1">
+                      Time remaining:{" "}
+                      <span className="font-mono bg-amber-500 text-white dark:bg-amber-600 dark:text-white px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm inline-block animate-pulse">
+                        {Math.floor(earliestRes.secondsRemaining / 60)}:
+                        {String(earliestRes.secondsRemaining % 60).padStart(2, "0")}
+                      </span>
+                    </span>
+                    {subStatus?.type === "DRIVER_GOLD" && (
+                      <>
+                        <span className="text-amber-500/30 font-light">|</span>
+                        <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full select-none uppercase tracking-wide">
+                          <Crown className="w-3 h-3 text-amber-500 shrink-0" /> Gold 10% Discount Applied
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-normal">
                     <span className="font-bold">Test Credentials:</span> eSewa ID: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">9806800003</code> | MPIN: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">Nepal@123</code> | OTP: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">123456</code>

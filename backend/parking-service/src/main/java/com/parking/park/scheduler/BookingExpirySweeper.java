@@ -34,7 +34,19 @@ public class BookingExpirySweeper {
     @Transactional
     public void sweepExpiredBookings() {
         LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
-        List<Booking> expiredBookings = bookingRepository.findByStatusAndCreatedAtBefore("PENDING_PAYMENT", now.minusMinutes(10));
+        
+        // 1. Fetch bookings expired by expiresAt timestamp
+        java.util.ArrayList<Booking> expiredBookings = new java.util.ArrayList<>(
+                bookingRepository.findByStatusAndExpiresAtBefore("PENDING_PAYMENT", now)
+        );
+        
+        // 2. Fetch legacy bookings (where expiresAt is null) that are older than 10 mins
+        List<Booking> legacyExpired = bookingRepository.findByStatusAndCreatedAtBefore("PENDING_PAYMENT", now.minusMinutes(10));
+        for (Booking booking : legacyExpired) {
+            if (booking.getExpiresAt() == null && !expiredBookings.contains(booking)) {
+                expiredBookings.add(booking);
+            }
+        }
 
         if (!expiredBookings.isEmpty()) {
             log.info("Found {} expired pending bookings. Processing release...", expiredBookings.size());

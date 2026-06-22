@@ -24,6 +24,15 @@ public class GarageSearchService {
     @Autowired
     private BookingRepository bookingRepository;
 
+    @Autowired
+    private com.parking.park.repository.UserSubscriptionRepository subscriptionRepository;
+
+    private boolean isOwnerPro(String ownerId) {
+        return subscriptionRepository.findByUserId(ownerId)
+                .map(sub -> "OWNER_PRO".equals(sub.getSubscriptionType()) && "ACTIVE".equals(sub.getStatus()))
+                .orElse(false);
+    }
+
     public List<GarageSearchDto> searchNearbyGarages(double lat, double lng, double radius, LocalDateTime startTime, LocalDateTime endTime) {
         // 1. Fetch raw Garage entities within bounds using cache
         List<Garage> garages = fetchGaragesWithinBounds(lat, lng, radius);
@@ -34,10 +43,10 @@ public class GarageSearchService {
                 .map(ParkingSpot::getId)
                 .collect(Collectors.toList());
 
-        LocalDateTime lockThreshold = LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(10);
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
         
         List<Booking> conflicts = spotIds.isEmpty() ? List.of() :
-                bookingRepository.findOverlappingBookingsForSpots(spotIds, startTime, endTime, lockThreshold);
+                bookingRepository.findOverlappingBookingsForSpots(spotIds, startTime, endTime, now);
 
         Set<Long> conflictedSpotIds = conflicts.stream()
                 .map(Booking::getSpotId)
@@ -47,6 +56,28 @@ public class GarageSearchService {
         return garages.stream()
                 .map(g -> {
                     GarageSearchDto dto = new GarageSearchDto(g);
+                    
+                    // Dynamic Pricing calculation
+                    double finalRate = g.getRatePerHour();
+                    if (g.isDynamicPricingEnabled()) {
+                        boolean isProOwner = isOwnerPro(g.getOwnerId());
+                        if (isProOwner) {
+                            List<ParkingSpot> spots = g.getSpots();
+                            if (spots != null && !spots.isEmpty()) {
+                                long total = spots.size();
+                                long occupied = spots.stream()
+                                        .filter(s -> !"AVAILABLE".equals(s.getStatus()) || conflictedSpotIds.contains(s.getId()))
+                                        .count();
+                                double occupancy = (double) occupied / total;
+                                if (occupancy > 0.8) {
+                                    finalRate = finalRate * 1.20; // 20% surge
+                                } else if (occupancy > 0.5) {
+                                    finalRate = finalRate * 1.10; // 10% surge
+                                }
+                            }
+                        }
+                    }
+                    dto.setRatePerHour(finalRate);
                     if (dto.getSpots() != null) {
                         dto.getSpots().forEach(s -> {
                             if (conflictedSpotIds.contains(s.getId())) {

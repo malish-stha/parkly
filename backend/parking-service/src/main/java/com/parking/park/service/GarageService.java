@@ -22,6 +22,15 @@ public class GarageService {
     @Autowired
     private BookingRepository bookingRepository;
 
+    @Autowired
+    private com.parking.park.repository.UserSubscriptionRepository subscriptionRepository;
+
+    private boolean isOwnerPro(String ownerId) {
+        return subscriptionRepository.findByUserId(ownerId)
+                .map(sub -> "OWNER_PRO".equals(sub.getSubscriptionType()) && "ACTIVE".equals(sub.getStatus()))
+                .orElse(false);
+    }
+
     @Transactional
     @CacheEvict(value = "garagesNearby", allEntries = true)
     public Garage onboardGarage(GarageOnboardRequest request, String ownerId) {
@@ -34,6 +43,10 @@ public class GarageService {
             request.getImageUrl(),
             ownerId
         );
+
+        boolean pro = isOwnerPro(ownerId);
+        garage.setDynamicPricingEnabled(pro && request.isDynamicPricingEnabled());
+        garage.setFeatured(pro && request.isFeatured());
 
         // Map layout spots to database models
         if (request.getSpots() != null) {
@@ -71,6 +84,10 @@ public class GarageService {
                 org.springframework.http.HttpStatus.FORBIDDEN, "You do not own this garage"
             );
         }
+
+        boolean pro = isOwnerPro(ownerId);
+        garage.setDynamicPricingEnabled(pro && request.isDynamicPricingEnabled());
+        garage.setFeatured(pro && request.isFeatured());
 
         // Update metadata
         garage.setName(request.getName());

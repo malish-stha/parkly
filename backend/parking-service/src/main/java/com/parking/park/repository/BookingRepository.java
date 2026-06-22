@@ -19,23 +19,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByGarageIdInOrderByCreatedAtDesc(Collection<Long> garageIds);
     boolean existsByGarageIdAndStatusIn(Long garageId, Collection<String> statuses);
 
+    List<Booking> findByStatusAndExpiresAtBefore(String status, LocalDateTime threshold);
     List<Booking> findByStatusAndCreatedAtBefore(String status, LocalDateTime threshold);
 
     @Query("SELECT b FROM Booking b WHERE b.spotId = :spotId " +
-           "AND (b.status = 'CONFIRMED' OR (b.status = 'PENDING_PAYMENT' AND b.createdAt > :lockThreshold)) " +
+           "AND (b.status = 'CONFIRMED' OR (b.status = 'PENDING_PAYMENT' AND b.expiresAt > :now)) " +
            "AND b.startTime < :endTime AND b.endTime > :startTime")
     List<Booking> findOverlappingBookings(
             @Param("spotId") Long spotId, 
             @Param("startTime") LocalDateTime startTime, 
             @Param("endTime") LocalDateTime endTime,
-            @Param("lockThreshold") LocalDateTime lockThreshold);
+            @Param("now") LocalDateTime now);
 
     @Query("SELECT b FROM Booking b WHERE b.spotId IN :spotIds " +
-           "AND (b.status = 'CONFIRMED' OR (b.status = 'PENDING_PAYMENT' AND b.createdAt > :lockThreshold)) " +
+           "AND (b.status = 'CONFIRMED' OR (b.status = 'PENDING_PAYMENT' AND b.expiresAt > :now)) " +
            "AND b.startTime < :endTime AND b.endTime > :startTime")
     List<Booking> findOverlappingBookingsForSpots(
             @Param("spotIds") List<Long> spotIds, 
             @Param("startTime") LocalDateTime startTime, 
             @Param("endTime") LocalDateTime endTime,
-            @Param("lockThreshold") LocalDateTime lockThreshold);
+            @Param("now") LocalDateTime now);
 }

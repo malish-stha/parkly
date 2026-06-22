@@ -525,20 +525,28 @@ export default function OwnerAnalyticsPage() {
                           <span className="font-black text-emerald-500">{garage.earnings.toLocaleString()} NPR</span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          <Link
-                            href={`/owner/edit-garage/${garage.garageId}`}
-                            className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary font-bold transition-all text-xs rounded-full border border-primary/20"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick(garage.garageId, garage.garageName)}
-                            disabled={isDeleting}
-                            className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-destructive/10 hover:bg-destructive/20 text-destructive font-bold transition-all text-xs rounded-full border border-destructive/20 disabled:opacity-50 cursor-pointer"
-                          >
-                            Delete
-                          </button>
+                          {garage.ownerId === userId ? (
+                            <>
+                              <Link
+                                href={`/owner/edit-garage/${garage.garageId}`}
+                                className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary font-bold transition-all text-xs rounded-full border border-primary/20"
+                              >
+                                Edit
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClick(garage.garageId, garage.garageName)}
+                                disabled={isDeleting}
+                                className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-destructive/10 hover:bg-destructive/20 text-destructive font-bold transition-all text-xs rounded-full border border-destructive/20 disabled:opacity-50 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-slate-100 dark:bg-white/5 text-muted-foreground font-bold text-xs rounded-full border border-border/80 uppercase tracking-wide select-none">
+                              Attendant Access
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

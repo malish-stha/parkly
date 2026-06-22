@@ -33,6 +33,12 @@ public class Garage {
     @Column(name = "owner_id", nullable = false)
     private String ownerId;
 
+    @Column(name = "dynamic_pricing_enabled")
+    private boolean dynamicPricingEnabled = false;
+
+    @Column(name = "featured")
+    private boolean featured = false;
+
     @OneToMany(mappedBy = "garage", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ParkingSpot> spots = new ArrayList<>();
 
@@ -72,6 +78,12 @@ public class Garage {
 
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+
+    public boolean isDynamicPricingEnabled() { return dynamicPricingEnabled; }
+    public void setDynamicPricingEnabled(boolean dynamicPricingEnabled) { this.dynamicPricingEnabled = dynamicPricingEnabled; }
+
+    public boolean isFeatured() { return featured; }
+    public void setFeatured(boolean featured) { this.featured = featured; }
 
     public List<ParkingSpot> getSpots() { return spots; }
     public void setSpots(List<ParkingSpot> spots) { this.spots = spots; }

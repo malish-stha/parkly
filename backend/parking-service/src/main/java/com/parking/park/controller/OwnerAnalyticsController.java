@@ -27,13 +27,16 @@ public class OwnerAnalyticsController {
     private final GarageService garageService;
     private final BookingRepository bookingRepository;
     private final ParkingSpotRepository spotRepository;
+    private final com.parking.park.repository.GarageStaffRepository staffRepository;
 
     public OwnerAnalyticsController(GarageService garageService,
                                     BookingRepository bookingRepository,
-                                    ParkingSpotRepository spotRepository) {
+                                    ParkingSpotRepository spotRepository,
+                                    com.parking.park.repository.GarageStaffRepository staffRepository) {
         this.garageService = garageService;
         this.bookingRepository = bookingRepository;
         this.spotRepository = spotRepository;
+        this.staffRepository = staffRepository;
     }
 
     @GetMapping
@@ -42,8 +45,30 @@ public class OwnerAnalyticsController {
         
         log.info("Calculating owner analytics for owner ID: {}", ownerId);
 
-        // 1. Fetch all garages owned by this owner
-        List<Garage> garages = garageService.getGaragesByOwner(ownerId);
+        // 1. Fetch all garages owned by this user
+        List<Garage> owned = garageService.getGaragesByOwner(ownerId);
+
+        // Fetch all garages where user is registered as staff
+        List<com.parking.park.model.GarageStaff> staffMappings = staffRepository.findByStaffUserId(ownerId);
+        List<Long> staffedGarageIds = staffMappings.stream()
+                .map(com.parking.park.model.GarageStaff::getGarageId)
+                .collect(Collectors.toList());
+        List<Garage> staffed = new ArrayList<>();
+        for (Long gid : staffedGarageIds) {
+            try {
+                staffed.add(garageService.getGarageById(gid));
+            } catch (Exception e) {
+                // Ignore missing garages
+            }
+        }
+
+        List<Garage> garages = new ArrayList<>(owned);
+        for (Garage g : staffed) {
+            if (garages.stream().noneMatch(existing -> existing.getId().equals(g.getId()))) {
+                garages.add(g);
+            }
+        }
+
         if (garages.isEmpty()) {
             return ResponseEntity.ok(new OwnerAnalyticsDto(0, 0.0, 0, new ArrayList<>(), new ArrayList<>()));
         }
@@ -101,7 +126,8 @@ public class OwnerAnalyticsController {
                             totalSpots,
                             g.getRatePerHour(),
                             earnings,
-                            bookingsCount
+                            bookingsCount,
+                            g.getOwnerId()
                     );
                 })
                 .collect(Collectors.toList());

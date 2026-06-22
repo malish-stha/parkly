@@ -3,8 +3,8 @@
 import { useState, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { RootState } from "@/store/store"
-import { X, Car, Zap, Truck, Bike, Banknote, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
-import { GarageSearchDto, ParkingSpotDto, useReserveSpotMutation } from "@/store/apiSlice"
+import { X, Car, Zap, Truck, Bike, Banknote, MapPin, Landmark, ArrowRight, Loader2, Crown } from "lucide-react"
+import { GarageSearchDto, ParkingSpotDto, useReserveSpotMutation, useGetSubscriptionStatusQuery } from "@/store/apiSlice"
 import { useAuth } from "@clerk/nextjs"
 
 interface SpotSelectorProps {
@@ -24,7 +24,10 @@ export default function SpotSelector({
   startTime,
   endTime
 }: SpotSelectorProps) {
-  const { userId } = useAuth()
+  const { userId, isLoaded } = useAuth()
+  const { data: subStatus } = useGetSubscriptionStatusQuery(undefined, {
+    skip: !isLoaded || !userId
+  })
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpotDto | null>(null)
   const activeReservations = useSelector((state: RootState) => state.booking.activeReservations)
   const [reservedInfo, setReservedInfo] = useState<{ bookingId: number; expiresAt: string; spotId: number; garageId: number } | null>(null)
@@ -128,7 +131,17 @@ export default function SpotSelector({
           </div>
           <div className="flex items-center gap-2">
             <Banknote className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="font-semibold text-emerald-500">{garage.ratePerHour} NPR/hr</span>
+            {subStatus?.type === "DRIVER_GOLD" ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="line-through text-muted-foreground font-semibold">{garage.ratePerHour} NPR/hr</span>
+                <span className="font-black text-amber-500">{(garage.ratePerHour * 0.9).toFixed(1)} NPR/hr</span>
+                <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-0.5">
+                  <Crown className="w-2.5 h-2.5 text-amber-500" /> Gold 10% Off
+                </span>
+              </div>
+            ) : (
+              <span className="font-semibold text-emerald-500">{garage.ratePerHour} NPR/hr</span>
+            )}
           </div>
         </div>
       </div>
@@ -282,16 +295,31 @@ export default function SpotSelector({
         )}
 
         {(reservedInfo || (isReservedByMe && currentSpot?.status === "PENDING_PAYMENT")) && (
-          <div className="border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs font-semibold text-emerald-600 text-center rounded-none animate-in fade-in duration-200">
-            ✅ Spot {currentSpot?.spotNumber} successfully reserved until{" "}
-            <span className="font-bold text-emerald-700">
-              {(() => {
-                const activeRes = activeReservations.find(r => r.spotId === String(currentSpot?.id));
-                const exp = reservedInfo?.expiresAt || activeRes?.expiresAt || "";
-                return new Date(exp.endsWith('Z') ? exp : `${exp}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              })()}
-            </span>! Please complete the payment within the time limit.
-          </div>
+          (() => {
+            const activeRes = activeReservations.find(r => r.spotId === String(currentSpot?.id));
+            const exp = reservedInfo?.expiresAt || activeRes?.expiresAt || "";
+            const formattedExp = exp.endsWith('Z') ? exp : `${exp}Z`;
+            const timeStr = exp ? new Date(formattedExp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+            const secondsRemaining = activeRes?.secondsRemaining || 0;
+            const minutes = Math.floor(secondsRemaining / 60);
+            const seconds = secondsRemaining % 60;
+
+            return (
+              <div className="border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs font-semibold text-emerald-650 dark:text-emerald-350 text-center rounded-none animate-in fade-in duration-200 space-y-1.5">
+                <div>
+                  ✅ Spot <span className="font-bold">{currentSpot?.spotNumber}</span> reserved until <span className="font-bold text-emerald-700 dark:text-emerald-400">{timeStr}</span>!
+                </div>
+                {secondsRemaining > 0 && (
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                    <span className="animate-pulse">⏳ Hold remaining:</span>
+                    <span className="font-mono bg-amber-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black">
+                      {minutes}:{String(seconds).padStart(2, "0")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()
         )}
 
         {reserveError && (

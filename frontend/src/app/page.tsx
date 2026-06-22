@@ -329,11 +329,9 @@ export default function Home() {
 
           <div className="flex items-center gap-4 md:gap-12">
             <div className="hidden md:flex gap-12">
-
-
-              {/* <Link href="/owner/new-garage" className="text-[0.7rem] tracking-[0.2em] font-extrabold text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/subscription" className="text-[0.7rem] tracking-[0.2em] font-extrabold text-muted-foreground hover:text-primary transition-colors">
                 PRICING
-              </Link> */}
+              </Link>
             </div>
 
             <div className="flex items-center gap-3">
