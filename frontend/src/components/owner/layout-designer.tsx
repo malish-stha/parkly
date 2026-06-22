@@ -10,15 +10,82 @@ interface SpotConfig {
 
 interface LayoutDesignerProps {
   onChange: (spots: SpotConfig[]) => void;
+  initialSpots?: SpotConfig[];
 }
 
-export function LayoutDesigner({ onChange }: LayoutDesignerProps) {
-  const [rows, setRows] = useState(3)
-  const [cols, setCols] = useState(5)
-  const [spotsMap, setSpotsMap] = useState<Record<string, "STANDARD" | "EV" | "SUV">>({})
+export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) {
+  // Compute initial rows and columns if initialSpots is provided
+  const [rows, setRows] = useState(() => {
+    if (!initialSpots || initialSpots.length === 0) return 3;
+    let maxRow = 1;
+    initialSpots.forEach(s => {
+      const match = s.spotNumber.match(/^([A-Za-z]+)/);
+      if (match) {
+        const rowStr = match[1].toUpperCase();
+        const rowVal = rowStr.charCodeAt(0) - 64;
+        if (rowVal > maxRow) maxRow = rowVal;
+      }
+    });
+    return Math.min(10, Math.max(1, maxRow));
+  });
+
+  const [cols, setCols] = useState(() => {
+    if (!initialSpots || initialSpots.length === 0) return 5;
+    let maxCol = 1;
+    initialSpots.forEach(s => {
+      const match = s.spotNumber.match(/\d+$/);
+      if (match) {
+        const colVal = parseInt(match[0], 10);
+        if (colVal > maxCol) maxCol = colVal;
+      }
+    });
+    return Math.min(15, Math.max(1, maxCol));
+  });
+
+  const [spotsMap, setSpotsMap] = useState<Record<string, "STANDARD" | "EV" | "SUV">>(() => {
+    if (!initialSpots || initialSpots.length === 0) return {};
+    const map: Record<string, "STANDARD" | "EV" | "SUV"> = {};
+    initialSpots.forEach(s => {
+      map[s.spotNumber] = s.vehicleType;
+    });
+    return map;
+  });
+
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  // Sync initial spots when they load from dynamic query
+  useEffect(() => {
+    if (initialSpots && initialSpots.length > 0 && !initialLoaded) {
+      const map: Record<string, "STANDARD" | "EV" | "SUV"> = {};
+      let maxRow = 1;
+      let maxCol = 1;
+      initialSpots.forEach(s => {
+        map[s.spotNumber] = s.vehicleType;
+        const rowMatch = s.spotNumber.match(/^([A-Za-z]+)/);
+        if (rowMatch) {
+          const rowVal = rowMatch[1].toUpperCase().charCodeAt(0) - 64;
+          if (rowVal > maxRow) maxRow = rowVal;
+        }
+        const colMatch = s.spotNumber.match(/\d+$/);
+        if (colMatch) {
+          const colVal = parseInt(colMatch[0], 10);
+          if (colVal > maxCol) maxCol = colVal;
+        }
+      });
+      setRows(Math.min(10, Math.max(1, maxRow)));
+      setCols(Math.min(15, Math.max(1, maxCol)));
+      setSpotsMap(map);
+      setInitialLoaded(true);
+    }
+  }, [initialSpots, initialLoaded]);
 
   // Generate the initial grid layout on load or size changes
   useEffect(() => {
+    // Wait until initial spots have loaded to prevent wiping out data
+    if (initialSpots && initialSpots.length > 0 && !initialLoaded) {
+      return;
+    }
+
     const newMap: Record<string, "STANDARD" | "EV" | "SUV"> = { ...spotsMap }
     let changed = false
 
@@ -49,7 +116,7 @@ export function LayoutDesigner({ onChange }: LayoutDesignerProps) {
       setSpotsMap(newMap)
       triggerChange(newMap)
     }
-  }, [rows, cols])
+  }, [rows, cols, initialLoaded])
 
   const triggerChange = (currentMap: Record<string, "STANDARD" | "EV" | "SUV">) => {
     const list = Object.entries(currentMap).map(([spotNumber, vehicleType]) => ({

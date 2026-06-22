@@ -78,6 +78,25 @@ export const apiSlice = createApi({
         body: garageData,
       }),
     }),
+    getGarageDetails: builder.query<GarageSearchDto, number>({
+      query: (id) => ({
+        url: `/garages/${id}`,
+        method: "GET",
+      }),
+    }),
+    updateGarage: builder.mutation<any, { id: number; body: GaragePayload }>({
+      query: ({ id, body }) => ({
+        url: `/garages/${id}`,
+        method: "PUT",
+        body,
+      }),
+    }),
+    deleteGarage: builder.mutation<any, number>({
+      query: (id) => ({
+        url: `/garages/${id}`,
+        method: "DELETE",
+      }),
+    }),
 
     searchGarages: builder.query<GarageSearchDto[], { lat: number; lng: number; radius: number; startTime?: string; endTime?: string }>({
       query: ({ lat, lng, radius, startTime, endTime }) => {
@@ -165,6 +184,9 @@ export interface OwnerAnalyticsDto {
 
 export const {
   useCreateGarageMutation,
+  useGetGarageDetailsQuery,
+  useUpdateGarageMutation,
+  useDeleteGarageMutation,
   useSearchGaragesQuery,
   useReserveSpotMutation,
   useConfirmBookingMutation,

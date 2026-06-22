@@ -1,0 +1,294 @@
+"use client"
+
+import { useState, useEffect, use } from "react"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, Landmark, MapPin, Banknote, Image as ImageIcon, Send, Loader2 } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { ImageUploader } from "@/components/image-uploader"
+import { LayoutDesigner } from "@/components/owner/layout-designer"
+import { useGetGarageDetailsQuery, useUpdateGarageMutation } from "@/store/apiSlice"
+import { UserButton } from "@clerk/nextjs"
+
+interface SpotConfig {
+  spotNumber: string;
+  vehicleType: "STANDARD" | "EV" | "SUV";
+}
+
+interface EditGaragePageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function EditGaragePage({ params }: EditGaragePageProps) {
+  const unwrappedParams = use(params)
+  const id = Number(unwrappedParams.id)
+  
+  const router = useRouter()
+  const { data: garage, isLoading: isFetching, error: fetchError } = useGetGarageDetailsQuery(id)
+  
+  const [name, setName] = useState("")
+  const [address, setAddress] = useState("")
+  const [latitude, setLatitude] = useState(27.7172)
+  const [longitude, setLongitude] = useState(85.3240)
+  const [ratePerHour, setRatePerHour] = useState("10")
+  const [imageUrl, setImageUrl] = useState("")
+  const [spots, setSpots] = useState<SpotConfig[]>([])
+
+  const [updateGarage, { isLoading: isSubmitting, isSuccess: success }] = useUpdateGarageMutation()
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Pre-populate form state when garage details are loaded
+  useEffect(() => {
+    if (garage) {
+      setName(garage.name)
+      setAddress(garage.address)
+      setLatitude(garage.latitude)
+      setLongitude(garage.longitude)
+      setRatePerHour(String(garage.ratePerHour))
+      setImageUrl(garage.imageUrl || "")
+      setSpots(
+        garage.spots.map((s) => ({
+          spotNumber: s.spotNumber,
+          vehicleType: s.vehicleType,
+        }))
+      )
+    }
+  }, [garage])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name || !address || !ratePerHour) {
+      setErrorMsg("Please fill out all required fields.")
+      return
+    }
+    if (spots.length === 0) {
+      setErrorMsg("Please configure at least one spot inside the layout grid.")
+      return
+    }
+
+    setErrorMsg(null)
+
+    const payload = {
+      name,
+      address,
+      latitude,
+      longitude,
+      ratePerHour: parseFloat(ratePerHour),
+      imageUrl,
+      spots,
+    }
+
+    try {
+      await updateGarage({ id, body: payload }).unwrap()
+      setTimeout(() => {
+        router.push("/owner/analytics")
+      }, 2000)
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || "An error occurred during submission."
+      setErrorMsg(msg)
+    }
+  }
+
+  if (isFetching) {
+    return (
+      <div className="w-full h-screen bg-background flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground font-semibold">Loading Garage Configuration...</span>
+      </div>
+    )
+  }
+
+  if (fetchError || !garage) {
+    return (
+      <div className="w-full h-screen bg-background flex flex-col items-center justify-center space-y-4">
+        <span className="text-sm font-semibold text-destructive">Failed to load garage details.</span>
+        <button
+          onClick={() => router.push("/owner/analytics")}
+          className="h-10 px-4 bg-primary text-primary-foreground font-semibold hover:opacity-90 flex items-center gap-2 rounded-none"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Owner Dashboard</span>
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="container mx-auto flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/owner/analytics")}
+              className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <span className="text-xl font-bold tracking-tight text-foreground">Edit Garage: {garage.name}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <UserButton />
+          </div>
+        </div>
+      </header>
+
+      {/* Form Container */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12">
+        {success ? (
+          <div className="border border-emerald-500 bg-emerald-500/10 p-8 text-center space-y-4">
+            <h2 className="text-2xl font-bold text-emerald-500">Garage Updated Successfully!</h2>
+            <p className="text-muted-foreground text-sm">
+              Your parking lot and its spots updates have been saved. Redirecting to dashboard...
+            </p>
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-500" />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-tight">Onboarded Garage configuration</h2>
+              <p className="text-sm text-muted-foreground">
+                You can update the name, rate, location coordinates, image, and grid spots allocation.
+              </p>
+            </div>
+
+            {errorMsg && (
+              <div className="border border-destructive bg-destructive/10 p-4 text-sm font-semibold text-destructive">
+                {errorMsg}
+              </div>
+            )}
+
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Left Column: Metadata */}
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold flex items-center gap-2">
+                    <Landmark className="h-4 w-4 text-primary" />
+                    <span>Garage Name *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Durbar Square Parking Complex"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full h-10 px-3 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-sm rounded-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span>Street Address *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Kantipath, Kathmandu"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full h-10 px-3 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-sm rounded-none"
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-1 space-y-2">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span>Latitude *</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={latitude}
+                      onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
+                      className="w-full h-10 px-3 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-sm rounded-none"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span>Longitude *</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={longitude}
+                      onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
+                      className="w-full h-10 px-3 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-sm rounded-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold flex items-center gap-2">
+                    <Banknote className="h-4 w-4 text-primary" />
+                    <span>Hourly Rate (NPR) *</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    placeholder="e.g. 100"
+                    value={ratePerHour}
+                    onChange={(e) => setRatePerHour(e.target.value)}
+                    className="w-full h-10 px-3 border border-border bg-card text-foreground focus:outline-none focus:border-primary text-sm rounded-none"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Image Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-primary" />
+                  <span>Garage Photo</span>
+                </label>
+                <ImageUploader onUploadComplete={(url) => setImageUrl(url)} value={imageUrl} />
+              </div>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* Grid Layout Section */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold tracking-tight">Spots Configuration Grid</h3>
+                <p className="text-xs text-muted-foreground">
+                  Build the layout map. Allocate the columns, rows, and spot capabilities.
+                </p>
+              </div>
+              {/* Load LayoutDesigner only after initial spots have been resolved */}
+              {spots.length > 0 && (
+                <LayoutDesigner initialSpots={spots} onChange={(updatedSpots) => setSpots(updatedSpots)} />
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end pt-6">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-11 px-8 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer rounded-none text-sm"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Saving Changes...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>Save Layout Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </main>
+    </div>
+  )
+}

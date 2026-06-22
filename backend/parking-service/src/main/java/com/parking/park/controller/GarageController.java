@@ -57,6 +57,23 @@ public class GarageController {
         return new ResponseEntity<>(savedGarage, HttpStatus.CREATED);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Garage> updateGarage(
+            @PathVariable Long id,
+            @RequestBody GarageOnboardRequest request,
+            @RequestHeader(value = "X-User-Id") String userId) {
+        Garage updatedGarage = garageService.updateGarage(id, request, userId);
+        return ResponseEntity.ok(updatedGarage);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteGarage(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Id") String userId) {
+        garageService.deleteGarage(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping
     public ResponseEntity<List<Garage>> getOwnerGarages(
             @RequestHeader(value = "X-User-Id") String userId) {

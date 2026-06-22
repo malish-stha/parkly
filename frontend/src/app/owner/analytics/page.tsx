@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { useGetOwnerAnalyticsQuery, BookingHistoryDto, GarageStatsDto } from "@/store/apiSlice"
+import { useGetOwnerAnalyticsQuery, useDeleteGarageMutation, BookingHistoryDto, GarageStatsDto } from "@/store/apiSlice"
 
 export default function OwnerAnalyticsPage() {
   const router = useRouter()
@@ -31,6 +31,20 @@ export default function OwnerAnalyticsPage() {
     skip: !isLoaded || !userId,
     refetchOnMountOrArgChange: true
   })
+
+  const [deleteGarage, { isLoading: isDeleting }] = useDeleteGarageMutation()
+
+  const handleDeleteClick = async (garageId: number, garageName: string) => {
+    if (window.confirm(`Are you sure you want to delete the garage "${garageName}"? This action cannot be undone.`)) {
+      try {
+        await deleteGarage(garageId).unwrap()
+        refetch()
+      } catch (err: any) {
+        console.error("Failed to delete garage", err)
+        alert(err?.data?.message || err?.message || "Failed to delete garage.")
+      }
+    }
+  }
 
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; label: string; value: number } | null>(null)
 
@@ -482,7 +496,8 @@ export default function OwnerAnalyticsPage() {
                       <th className="px-6 py-4">Capacity</th>
                       <th className="px-6 py-4">Hourly Rate</th>
                       <th className="px-6 py-4">Bookings Count</th>
-                      <th className="px-6 py-4 text-right">Revenue Generated</th>
+                      <th className="px-6 py-4">Revenue Generated</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60 text-sm">
@@ -506,8 +521,24 @@ export default function OwnerAnalyticsPage() {
                         <td className="px-6 py-4 text-xs font-semibold text-muted-foreground">
                           {garage.bookingsCount} reservations
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4">
                           <span className="font-black text-emerald-500">{garage.earnings.toLocaleString()} NPR</span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <Link
+                            href={`/owner/edit-garage/${garage.garageId}`}
+                            className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary font-bold transition-all text-xs rounded-full border border-primary/20"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(garage.garageId, garage.garageName)}
+                            disabled={isDeleting}
+                            className="inline-flex h-8 px-3 items-center justify-center gap-1 bg-destructive/10 hover:bg-destructive/20 text-destructive font-bold transition-all text-xs rounded-full border border-destructive/20 disabled:opacity-50 cursor-pointer"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
