@@ -333,7 +333,7 @@ export default function SpotSelector({
           <div className="space-y-3 animate-in zoom-in-95 duration-200">
             <div className="bg-amber-500/5 border border-amber-500/20 p-2.5 text-[10px] text-amber-800 dark:text-amber-300 rounded-none leading-relaxed">
               <span className="font-extrabold uppercase block tracking-wider mb-1">eSewa Test Credentials:</span>
-              <div>• <strong className="font-mono">eSewa ID/Mobile:</strong> 9806800003 or 9806800002</div>
+              <div>• <strong className="font-mono">eSewa ID/Mobile:</strong> 9806800003</div>
               <div>• <strong className="font-mono">MPIN/Password:</strong> Nepal@123</div>
               <div>• <strong className="font-mono">OTP Code:</strong> 123456</div>
             </div>

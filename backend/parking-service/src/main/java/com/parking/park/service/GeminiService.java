@@ -29,10 +29,12 @@ public class GeminiService {
 
     public static class ParseResult {
         public Double maxPrice;
+        public Double minPrice;
         public String vehicleType;
         public Double resolvedLat;
         public Double resolvedLng;
         public String aiMessage;
+        public Boolean isSearch;
     }
 
     public ParseResult parseQuery(String query) {
@@ -50,11 +52,38 @@ public class GeminiService {
                     "User query: \"" + query.replace("\"", "\\\"") + "\"\n\n" +
                     "Extract the following keys:\n" +
                     "1. \"maxPrice\": Number. The maximum hourly rate parsed from terms like \"under 100\", \"below 100\", \"max 100\", \"limit 90\". Null if not specified.\n" +
-                    "2. \"vehicleType\": String. One of \"EV\", \"SUV\", \"STANDARD\", \"BIKE\". If query mentions EV/charging/electric -> \"EV\"; if SUV/large/truck/jeep -> \"SUV\"; if bike/motorcycle/two-wheeler/scooter/cycle -> \"BIKE\"; if standard/car/normal -> \"STANDARD\". Null if not specified.\n" +
-                    "3. \"resolvedLat\": Number. The exact latitude coordinate of the landmark or location mentioned in the query (resolve Kathmandu landmarks/places like Thamel, Durbar Square, Patan Durbar Square, Bhaktapur, Balaju, Teaching Hospital, Civil Mall, Sundhara, Durbar Marg, Chabahil, etc.). Return null if no specific location/landmark was mentioned.\n" +
-                    "4. \"resolvedLng\": Number. The exact longitude coordinate of the landmark or location mentioned. Return null if no specific location was mentioned.\n" +
-                    "5. \"aiMessage\": String. A professional, friendly, and contextual response to the user summarizing the search query in a single sentence (e.g. \"Finding standard spots under 120 NPR near Civil Mall...\").\n\n" +
-                    "Return ONLY a raw JSON object with these keys: \"maxPrice\", \"vehicleType\", \"resolvedLat\", \"resolvedLng\", \"aiMessage\". Do not wrap the JSON output in markdown formatting (like ```json).";
+                    "2. \"minPrice\": Number. The minimum hourly rate parsed from terms like \"over 100\", \"above 100\", \"min 100\", \"more than 80\". Null if not specified.\n" +
+                    "3. \"vehicleType\": String. One of \"EV\", \"SUV\", \"STANDARD\", \"BIKE\". If query mentions EV/charging/electric -> \"EV\"; if SUV/large/truck/jeep -> \"SUV\"; if bike/motorcycle/two-wheeler/scooter/cycle -> \"BIKE\"; if standard/car/normal -> \"STANDARD\". Null if not specified. Note: Do not extract a type if it is mentioned in a negative or exclusionary context (e.g. \"not EV\", \"no bikes\", \"except SUV\").\n" +
+                    "4. \"resolvedLat\": Number. The exact latitude coordinate of the landmark or location mentioned in the query. Use this landmark library for resolution:\n" +
+                    "   - Thamel: 27.7150\n" +
+                    "   - Durbar Square (Kathmandu): 27.7042\n" +
+                    "   - Durbar Marg: 27.7123\n" +
+                    "   - Civil Mall / Sundhara / Dharahara: 27.7000\n" +
+                    "   - New Road / Kathmandu Mall: 27.7020\n" +
+                    "   - New Baneshwor: 27.6915\n" +
+                    "   - Jawalakhel: 27.6740\n" +
+                    "   - Pulchowk: 27.6775\n" +
+                    "   - Kupondole: 27.6865\n" +
+                    "   - Lagankhel: 27.6685\n" +
+                    "   - Bouddha: 27.7215\n" +
+                    "   - Gaushala / Pashupati: 27.7104\n" +
+                    "   - Maharajgunj: 27.7375\n" +
+                    "   - Kalimati: 27.6980\n" +
+                    "   - Swayambhu: 27.7150\n" +
+                    "   - Chabahil: 27.7190\n" +
+                    "   - Putalisadak: 27.7035\n" +
+                    "   - Tinkune: 27.6850\n" +
+                    "   - Naxal: 27.7135\n" +
+                    "   - Kirtipur: 27.6795\n" +
+                    "   - Balaju: 27.7320\n" +
+                    "   - Tripureshwor: 27.6945\n" +
+                    "   - Kamaladi: 27.7085\n" +
+                    "   - Lazimpat: 27.7230\n" +
+                    "   If the query specifies a relative location like \"near me\", \"closest\", \"nearby\", \"around here\", or \"here\" without naming a specific place above, return null. Return null if no location is mentioned.\n" +
+                    "5. \"resolvedLng\": Number. The exact longitude coordinate matching the resolved landmark. Use the library above (e.g. Thamel: 85.3102, Durbar Square: 85.3065, Durbar Marg: 85.3168, Civil Mall: 85.3120, New Road: 85.3115, New Baneshwor: 85.3340, Jawalakhel: 85.3125, Pulchowk: 85.3155, Kupondole: 85.3160, Lagankhel: 85.3200, Bouddha: 85.3620, Gaushala: 85.3486, Maharajgunj: 85.3325, Kalimati: 85.2970, Swayambhu: 85.2900, Chabahil: 85.3480, Putalisadak: 85.3210, Tinkune: 85.3490, Naxal: 85.3285, Kirtipur: 85.2770, Balaju: 85.3020, Tripureshwor: 85.3110, Kamaladi: 85.3205, Lazimpat: 85.3180). Return null if resolvedLat is null.\n" +
+                    "6. \"aiMessage\": String. A contextual response to the user. If isSearch is true, summarize the search in a single sentence (e.g. \"Finding standard spots under 120 NPR near Civil Mall...\"). If isSearch is false, return a friendly, localized greeting response starting with \"Namaste!\" that welcomes the user, briefly introduces Parkly's search capabilities, and prompts them to ask a parking search query.\n" +
+                    "7. \"isSearch\": Boolean. Set to true if the query is a request to search/find parking spaces or spots (e.g., \"find parking near Thamel\", \"show bike spaces\", \"any spots under 80?\"). Set to false if the user is just saying hello, asking who you are, or doing general conversational chit-chat (e.g., \"who are you?\", \"hello\", \"how are you?\").\n\n" +
+                    "Return ONLY a raw JSON object with these keys: \"maxPrice\", \"minPrice\", \"vehicleType\", \"resolvedLat\", \"resolvedLng\", \"aiMessage\", \"isSearch\". Do not wrap the JSON output in markdown formatting (like ```json).";
 
             // Construct payload
             Map<String, Object> part = new HashMap<>();
@@ -91,24 +120,46 @@ public class GeminiService {
                     JsonNode resultJson = objectMapper.readTree(jsonText.trim());
                     
                     ParseResult result = new ParseResult();
-                    if (resultJson.has("maxPrice") && !resultJson.get("maxPrice").isNull()) {
-                        result.maxPrice = resultJson.get("maxPrice").asDouble();
+                    
+                    JsonNode maxPriceNode = resultJson.has("maxPrice") ? resultJson.get("maxPrice") : resultJson.get("max_price");
+                    if (maxPriceNode != null && !maxPriceNode.isNull()) {
+                        result.maxPrice = maxPriceNode.asDouble();
                     }
-                    if (resultJson.has("vehicleType") && !resultJson.get("vehicleType").isNull()) {
-                        result.vehicleType = resultJson.get("vehicleType").asText().toUpperCase();
+
+                    JsonNode minPriceNode = resultJson.has("minPrice") ? resultJson.get("minPrice") : resultJson.get("min_price");
+                    if (minPriceNode != null && !minPriceNode.isNull()) {
+                        result.minPrice = minPriceNode.asDouble();
                     }
-                    if (resultJson.has("resolvedLat") && !resultJson.get("resolvedLat").isNull()) {
-                        result.resolvedLat = resultJson.get("resolvedLat").asDouble();
+
+                    JsonNode vehicleTypeNode = resultJson.has("vehicleType") ? resultJson.get("vehicleType") : resultJson.get("vehicle_type");
+                    if (vehicleTypeNode != null && !vehicleTypeNode.isNull()) {
+                        result.vehicleType = vehicleTypeNode.asText().toUpperCase();
                     }
-                    if (resultJson.has("resolvedLng") && !resultJson.get("resolvedLng").isNull()) {
-                        result.resolvedLng = resultJson.get("resolvedLng").asDouble();
+
+                    JsonNode resolvedLatNode = resultJson.has("resolvedLat") ? resultJson.get("resolvedLat") : resultJson.get("resolved_lat");
+                    if (resolvedLatNode != null && !resolvedLatNode.isNull()) {
+                        result.resolvedLat = resolvedLatNode.asDouble();
                     }
-                    if (resultJson.has("aiMessage") && !resultJson.get("aiMessage").isNull()) {
-                        result.aiMessage = resultJson.get("aiMessage").asText();
+
+                    JsonNode resolvedLngNode = resultJson.has("resolvedLng") ? resultJson.get("resolvedLng") : resultJson.get("resolved_lng");
+                    if (resolvedLngNode != null && !resolvedLngNode.isNull()) {
+                        result.resolvedLng = resolvedLngNode.asDouble();
+                    }
+
+                    JsonNode aiMessageNode = resultJson.has("aiMessage") ? resultJson.get("aiMessage") : resultJson.get("ai_message");
+                    if (aiMessageNode != null && !aiMessageNode.isNull()) {
+                        result.aiMessage = aiMessageNode.asText();
+                    }
+
+                    JsonNode isSearchNode = resultJson.has("isSearch") ? resultJson.get("isSearch") : resultJson.get("is_search");
+                    if (isSearchNode != null && !isSearchNode.isNull()) {
+                        result.isSearch = isSearchNode.asBoolean();
+                    } else {
+                        result.isSearch = true;
                     }
                     
-                    log.info("Gemini parsed query: price={}, type={}, coords={}/{}, msg={}", 
-                            result.maxPrice, result.vehicleType, result.resolvedLat, result.resolvedLng, result.aiMessage);
+                    log.info("Gemini parsed query: priceMin={}, priceMax={}, type={}, coords={}/{}, msg={}, isSearch={}", 
+                            result.minPrice, result.maxPrice, result.vehicleType, result.resolvedLat, result.resolvedLng, result.aiMessage, result.isSearch);
                     return result;
                 }
             }

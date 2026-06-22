@@ -43,71 +43,51 @@ public class AISearchController {
         }
 
         Double maxPrice = null;
+        Double minPrice = null;
         String requiredType = null;
         String aiMessage = null;
 
         // 1. Try parsing using Gemini LLM
         GeminiService.ParseResult geminiResult = geminiService.parseQuery(query);
-        if (geminiResult != null) {
-            maxPrice = geminiResult.maxPrice;
-            requiredType = geminiResult.vehicleType;
-            aiMessage = geminiResult.aiMessage;
+        if (geminiResult == null) {
+            return ResponseEntity.status(503).build();
+        }
 
-            if (geminiResult.resolvedLat != null && geminiResult.resolvedLng != null) {
-                centerLat = geminiResult.resolvedLat;
-                centerLng = geminiResult.resolvedLng;
-            }
-        } else {
-            // 2. Local Regex Fallback if Gemini key is not configured or fails
-            if (lowerQuery.contains("thamel")) {
-                centerLat = 27.7150;
-                centerLng = 85.3102;
-            } else if (lowerQuery.contains("durbar square")) {
-                centerLat = 27.7042;
-                centerLng = 85.3065;
-            } else if (lowerQuery.contains("civil mall") || lowerQuery.contains("sundhara")) {
-                centerLat = 27.7005;
-                centerLng = 85.3122;
-            } else if (lowerQuery.contains("durbar marg")) {
-                centerLat = 27.7123;
-                centerLng = 85.3168;
-            }
+        aiMessage = geminiResult.aiMessage;
+        if (Boolean.FALSE.equals(geminiResult.isSearch)) {
+            return ResponseEntity.ok(new AISearchResponseDto(aiMessage, List.of(), centerLat, centerLng));
+        }
+        maxPrice = geminiResult.maxPrice;
+        minPrice = geminiResult.minPrice;
+        requiredType = geminiResult.vehicleType;
 
-            Pattern pricePattern = Pattern.compile("(?:under|below|less than|max|limit)\\s+\\$?(\\d+)");
-            Matcher priceMatcher = pricePattern.matcher(lowerQuery);
-            if (priceMatcher.find()) {
-                try {
-                    maxPrice = Double.parseDouble(priceMatcher.group(1));
-                } catch (NumberFormatException ignored) {}
-            }
-
-            if (lowerQuery.contains("ev") || lowerQuery.contains("charging")) {
-                requiredType = "EV";
-            } else if (lowerQuery.contains("suv") || lowerQuery.contains("large") || lowerQuery.contains("truck") || lowerQuery.contains("jeep")) {
-                requiredType = "SUV";
-            } else if (lowerQuery.contains("bike") || lowerQuery.contains("motorcycle") || lowerQuery.contains("two-wheeler") || lowerQuery.contains("scooter")) {
-                requiredType = "BIKE";
-            } else if (lowerQuery.contains("standard") || lowerQuery.contains("car") || lowerQuery.contains("normal")) {
-                requiredType = "STANDARD";
-            }
+        if (geminiResult.resolvedLat != null && geminiResult.resolvedLng != null) {
+            centerLat = geminiResult.resolvedLat;
+            centerLng = geminiResult.resolvedLng;
         }
 
         // 3. Search nearby garages (10km range for AI search helper)
         LocalDateTime start = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime end = start.plusHours(1);
 
-        List<GarageSearchDto> nearbyGarages = garageSearchService.searchNearbyGarages(centerLat, centerLng, 10.0, start, end);
+        List<GarageSearchDto> nearbyGarages = garageSearchService.searchNearbyGarages(centerLat, centerLng, 4.0, start, end);
 
         // 4. Filter and Sort
-        final Double priceLimit = maxPrice;
+        final Double priceMaxLimit = maxPrice;
+        final Double priceMinLimit = minPrice;
         final String spotTypeLimit = requiredType;
         final double searchLat = centerLat;
         final double searchLng = centerLng;
 
         List<GarageSearchDto> filteredGarages = nearbyGarages.stream()
                 .filter(g -> {
-                    // Filter by rate limit
-                    if (priceLimit != null && g.getRatePerHour() > priceLimit) {
+                    // Filter by max rate limit
+                    if (priceMaxLimit != null && g.getRatePerHour() > priceMaxLimit) {
+                        return false;
+                    }
+                    
+                    // Filter by min rate limit
+                    if (priceMinLimit != null && g.getRatePerHour() < priceMinLimit) {
                         return false;
                     }
                     
@@ -125,6 +105,7 @@ public class AISearchController {
                         calculateDistance(searchLat, searchLng, a.getLatitude(), a.getLongitude()),
                         calculateDistance(searchLat, searchLng, b.getLatitude(), b.getLongitude())
                 ))
+                .limit(5)
                 .collect(Collectors.toList());
 
         // 5. Construct fallback user message if Gemini did not provide one

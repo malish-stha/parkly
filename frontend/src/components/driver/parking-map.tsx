@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { GarageSearchDto } from "@/store/apiSlice"
@@ -17,18 +17,29 @@ L.Icon.Default.mergeOptions({
 
 interface ParkingMapProps {
   center: { lat: number; lng: number };
+  radius: number;
   garages: GarageSearchDto[];
   selectedGarageId: number | null;
   onSelectGarage: (garage: GarageSearchDto) => void;
   onMapClick?: (lat: number, lng: number) => void;
 }
 
-// Helper component to center map on search coordinates change
-function MapController({ center }: { center: { lat: number; lng: number } }) {
+// Helper component to center map and fit search bounds based on radius
+function MapController({ center, radius, isGarageSelected }: { center: { lat: number; lng: number }; radius: number; isGarageSelected: boolean }) {
   const map = useMap()
   useEffect(() => {
-    map.setView([center.lat, center.lng], 14, { animate: true })
-  }, [center, map])
+    if (isGarageSelected) return
+
+    const latChange = radius / 111.0
+    const cosLat = Math.cos((center.lat * Math.PI) / 180)
+    const lngChange = cosLat > 0 ? radius / (111.0 * cosLat) : 0
+
+    const bounds = L.latLngBounds(
+      [center.lat - latChange, center.lng - lngChange],
+      [center.lat + latChange, center.lng + lngChange]
+    )
+    map.fitBounds(bounds, { padding: [40, 40], animate: true })
+  }, [center, radius, isGarageSelected, map])
   return null
 }
 
@@ -57,7 +68,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null
 }
 
-export default function ParkingMap({ center, garages, selectedGarageId, onSelectGarage, onMapClick }: ParkingMapProps) {
+export default function ParkingMap({ center, radius, garages, selectedGarageId, onSelectGarage, onMapClick }: ParkingMapProps) {
   const [routePositions, setRoutePositions] = useState<[number, number][]>([])
   const [routeMeta, setRouteMeta] = useState<{ distance: string; duration: string } | null>(null)
 
@@ -207,9 +218,22 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapController center={center} />
+        <MapController center={center} radius={radius} isGarageSelected={selectedGarageId !== null} />
         <MapBoundsController center={center} selectedGarage={garages.find(g => g.id === selectedGarageId) || null} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
+
+        {/* Render Search Radius Circle */}
+        <Circle
+          center={[center.lat, center.lng]}
+          radius={radius * 1000}
+          pathOptions={{
+            color: "#3b82f6",
+            fillColor: "#3b82f6",
+            fillOpacity: 0.08,
+            weight: 1.5,
+            dashArray: "5 5"
+          }}
+        />
 
         {/* Render Search Center Marker */}
         <Marker position={[center.lat, center.lng]} icon={searchCenterIcon} zIndexOffset={1000}>

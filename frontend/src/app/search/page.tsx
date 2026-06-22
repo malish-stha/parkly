@@ -452,6 +452,7 @@ function SearchPageContent() {
         <div className="flex-1 h-full relative z-0">
           <ParkingMap
             center={center}
+            radius={radius}
             garages={processedGarages}
             selectedGarageId={selectedGarageId}
             onSelectGarage={handleSelectGarage}
