@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Grid, Zap, Truck, Car } from "lucide-react"
+import { Grid, Zap, Truck, Car, Bike } from "lucide-react"
 
 interface SpotConfig {
   spotNumber: string;
-  vehicleType: "STANDARD" | "EV" | "SUV";
+  vehicleType: "STANDARD" | "EV" | "SUV" | "BIKE";
 }
 
 interface LayoutDesignerProps {
@@ -42,9 +42,9 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
     return Math.min(15, Math.max(1, maxCol));
   });
 
-  const [spotsMap, setSpotsMap] = useState<Record<string, "STANDARD" | "EV" | "SUV">>(() => {
+  const [spotsMap, setSpotsMap] = useState<Record<string, "STANDARD" | "EV" | "SUV" | "BIKE">>(() => {
     if (!initialSpots || initialSpots.length === 0) return {};
-    const map: Record<string, "STANDARD" | "EV" | "SUV"> = {};
+    const map: Record<string, "STANDARD" | "EV" | "SUV" | "BIKE"> = {};
     initialSpots.forEach(s => {
       map[s.spotNumber] = s.vehicleType;
     });
@@ -56,7 +56,7 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
   // Sync initial spots when they load from dynamic query
   useEffect(() => {
     if (initialSpots && initialSpots.length > 0 && !initialLoaded) {
-      const map: Record<string, "STANDARD" | "EV" | "SUV"> = {};
+      const map: Record<string, "STANDARD" | "EV" | "SUV" | "BIKE"> = {};
       let maxRow = 1;
       let maxCol = 1;
       initialSpots.forEach(s => {
@@ -86,7 +86,7 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
       return;
     }
 
-    const newMap: Record<string, "STANDARD" | "EV" | "SUV"> = { ...spotsMap }
+    const newMap: Record<string, "STANDARD" | "EV" | "SUV" | "BIKE"> = { ...spotsMap }
     let changed = false
 
     for (let r = 0; r < rows; r++) {
@@ -118,7 +118,7 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
     }
   }, [rows, cols, initialLoaded])
 
-  const triggerChange = (currentMap: Record<string, "STANDARD" | "EV" | "SUV">) => {
+  const triggerChange = (currentMap: Record<string, "STANDARD" | "EV" | "SUV" | "BIKE">) => {
     const list = Object.entries(currentMap).map(([spotNumber, vehicleType]) => ({
       spotNumber,
       vehicleType,
@@ -128,10 +128,11 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
 
   const toggleSpotType = (spotNum: string) => {
     const currentType = spotsMap[spotNum]
-    let nextType: "STANDARD" | "EV" | "SUV" = "STANDARD"
+    let nextType: "STANDARD" | "EV" | "SUV" | "BIKE" = "STANDARD"
 
     if (currentType === "STANDARD") nextType = "EV"
     else if (currentType === "EV") nextType = "SUV"
+    else if (currentType === "SUV") nextType = "BIKE"
 
     const updatedMap = {
       ...spotsMap,
@@ -193,6 +194,12 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
           </span>
           <span>Large SUV</span>
         </div>
+        <div className="flex items-center gap-1 text-amber-500">
+          <span className="w-3.5 h-3.5 bg-amber-500/10 border border-amber-500 inline-block flex items-center justify-center">
+            <Bike className="h-2 w-2" />
+          </span>
+          <span>Two-Wheeler Bike</span>
+        </div>
       </div>
 
       {/* Grid Layout Canvas */}
@@ -216,6 +223,9 @@ export function LayoutDesigner({ onChange, initialSpots }: LayoutDesignerProps) 
               } else if (type === "SUV") {
                 typeStyles = "bg-blue-500/10 border-blue-500 hover:bg-blue-500/20 text-blue-500"
                 icon = <Truck className="h-4 w-4" />
+              } else if (type === "BIKE") {
+                typeStyles = "bg-amber-500/10 border-amber-500 hover:bg-amber-500/20 text-amber-500"
+                icon = <Bike className="h-4 w-4" />
               }
 
               return (

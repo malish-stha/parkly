@@ -12,8 +12,8 @@ interface SearchSidebarProps {
   onRadiusChange: (val: number) => void;
   selectedGarageId: number | null;
   onSelectGarage: (garage: GarageSearchDto) => void;
-  filterVehicle: "STANDARD" | "EV" | "SUV" | "ALL";
-  onFilterVehicleChange: (val: "STANDARD" | "EV" | "SUV" | "ALL") => void;
+  filterVehicle: "STANDARD" | "EV" | "SUV" | "BIKE" | "ALL";
+  onFilterVehicleChange: (val: "STANDARD" | "EV" | "SUV" | "BIKE" | "ALL") => void;
   sortBy: "PRICE" | "DISTANCE" | "SPOTS";
   onSortByChange: (val: "PRICE" | "DISTANCE" | "SPOTS") => void;
   startTime: string;
@@ -191,13 +191,13 @@ export default function SearchSidebar({
         {/* Vehicle Filter Tabs */}
         <div className="space-y-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Required Type</span>
-          <div className="grid grid-cols-4 gap-1.5 bg-muted p-1 border border-border">
-            {(["ALL", "STANDARD", "EV", "SUV"] as const).map((type) => (
+          <div className="grid grid-cols-5 gap-1 bg-muted p-1 border border-border">
+            {(["ALL", "STANDARD", "EV", "SUV", "BIKE"] as const).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => onFilterVehicleChange(type)}
-                className={`py-1.5 text-[10px] font-bold tracking-tight text-center cursor-pointer transition-all rounded-none uppercase ${
+                className={`py-1.5 text-[9px] font-bold tracking-tight text-center cursor-pointer transition-all rounded-none uppercase ${
                   filterVehicle === type
                     ? "bg-card text-primary shadow-sm"
                     : "text-muted-foreground hover:text-foreground"

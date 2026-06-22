@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet"
+import { useEffect, useState } from "react"
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { GarageSearchDto } from "@/store/apiSlice"
+import { Navigation } from "lucide-react"
 
 // Fix for default marker icon mapping in Leaflet with Webpack/Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -31,6 +32,21 @@ function MapController({ center }: { center: { lat: number; lng: number } }) {
   return null
 }
 
+// Helper component to auto fit bounds when garage is selected
+function MapBoundsController({ center, selectedGarage }: { center: { lat: number; lng: number }; selectedGarage: GarageSearchDto | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (selectedGarage) {
+      const bounds = L.latLngBounds(
+        [center.lat, center.lng],
+        [selectedGarage.latitude, selectedGarage.longitude]
+      )
+      map.fitBounds(bounds, { padding: [100, 100], maxZoom: 16, animate: true })
+    }
+  }, [center, selectedGarage, map])
+  return null
+}
+
 // Component to handle map clicks
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
@@ -42,6 +58,49 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 }
 
 export default function ParkingMap({ center, garages, selectedGarageId, onSelectGarage, onMapClick }: ParkingMapProps) {
+  const [routePositions, setRoutePositions] = useState<[number, number][]>([])
+  const [routeMeta, setRouteMeta] = useState<{ distance: string; duration: string } | null>(null)
+
+  // Fetch OSRM driving route when search center or selected garage changes
+  useEffect(() => {
+    const selectedGarage = garages.find((g) => g.id === selectedGarageId)
+    if (!selectedGarage) {
+      setRoutePositions([])
+      setRouteMeta(null)
+      return
+    }
+
+    let active = true
+
+    const fetchRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${center.lng},${center.lat};${selectedGarage.longitude},${selectedGarage.latitude}?overview=full&geometries=geojson`
+        const res = await fetch(url)
+        if (!res.ok) throw new Error("OSRM fetch failed")
+        const data = await res.json()
+        
+        if (active && data.routes && data.routes.length > 0) {
+          const route = data.routes[0]
+          const coords = route.geometry.coordinates
+          const positions = coords.map((c: [number, number]) => [c[1], c[0]] as [number, number])
+          
+          setRoutePositions(positions)
+          setRouteMeta({
+            distance: (route.distance / 1000).toFixed(1) + " km",
+            duration: Math.round(route.duration / 60) + " mins",
+          })
+        }
+      } catch (err) {
+        console.error("OSRM Routing error:", err)
+      }
+    }
+
+    fetchRoute()
+
+    return () => {
+      active = false
+    }
+  }, [center, selectedGarageId, garages])
 
   // Custom search center pin icon (sharp blue pin with white dot)
   const searchCenterIcon = L.divIcon({
@@ -149,6 +208,7 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapController center={center} />
+        <MapBoundsController center={center} selectedGarage={garages.find(g => g.id === selectedGarageId) || null} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
         {/* Render Search Center Marker */}
@@ -188,7 +248,35 @@ export default function ParkingMap({ center, garages, selectedGarageId, onSelect
             </Marker>
           )
         })}
+        {routePositions.length > 0 && (
+          <Polyline
+            positions={routePositions}
+            pathOptions={{
+              color: "#3b82f6",
+              weight: 5,
+              opacity: 0.8,
+              lineCap: "round",
+              lineJoin: "round",
+            }}
+          />
+        )}
       </MapContainer>
+
+      {routeMeta && (
+        <div className="absolute top-4 left-4 z-[10] bg-background/85 backdrop-blur-md border border-border p-3 shadow-lg rounded-none max-w-[280px] animate-in slide-in-from-left duration-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 text-primary">
+              <Navigation className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">Proximity driving route</span>
+              <span className="text-xs font-black text-foreground">
+                {routeMeta.distance} • {routeMeta.duration} drive
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

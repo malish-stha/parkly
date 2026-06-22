@@ -11,7 +11,7 @@ import { UserButton } from "@clerk/nextjs"
 
 interface SpotConfig {
   spotNumber: string;
-  vehicleType: "STANDARD" | "EV" | "SUV";
+  vehicleType: "STANDARD" | "EV" | "SUV" | "BIKE";
 }
 
 export default function NewGaragePage() {

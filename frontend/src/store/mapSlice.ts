@@ -28,7 +28,7 @@ interface MapState {
   selectedGarage: GarageInfo | null;
   garagesList: GarageInfo[];
   activeRoute: RouteInfo | null;
-  filterVehicleType: 'STANDARD' | 'EV' | 'SUV' | 'ALL';
+  filterVehicleType: 'STANDARD' | 'EV' | 'SUV' | 'BIKE' | 'ALL';
   sortBy: 'PRICE_LOW' | 'DISTANCE_CLOSE' | 'SPOTS_HIGH';
 }
 

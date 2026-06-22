@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
 
 export interface SpotConfig {
   spotNumber: string;
-  vehicleType: "STANDARD" | "EV" | "SUV";
+  vehicleType: "STANDARD" | "EV" | "SUV" | "BIKE";
 }
 
 export interface GaragePayload {
@@ -18,7 +18,7 @@ export interface GaragePayload {
 export interface ParkingSpotDto {
   id: number;
   spotNumber: string;
-  vehicleType: "STANDARD" | "EV" | "SUV";
+  vehicleType: "STANDARD" | "EV" | "SUV" | "BIKE";
   status: "AVAILABLE" | "PENDING_PAYMENT" | "RESERVED" | "OCCUPIED";
   bookedUntil?: string;
   bookedBy?: string;
@@ -34,6 +34,13 @@ export interface GarageSearchDto {
   imageUrl: string;
   ownerId: string;
   spots: ParkingSpotDto[];
+}
+
+export interface AISearchResponse {
+  message: string;
+  garages: GarageSearchDto[];
+  resolvedLat?: number;
+  resolvedLng?: number;
 }
 
 export interface BookingHistoryDto {
@@ -83,6 +90,17 @@ export const apiSlice = createApi({
         url: `/garages/${id}`,
         method: "GET",
       }),
+    }),
+    aiSearchGarages: builder.query<AISearchResponse, { query: string; lat?: number; lng?: number }>({
+      query: ({ query, lat, lng }) => {
+        let url = `/garages/ai-search?query=${encodeURIComponent(query)}`;
+        if (lat !== undefined) url += `&lat=${lat}`;
+        if (lng !== undefined) url += `&lng=${lng}`;
+        return {
+          url,
+          method: "GET",
+        };
+      },
     }),
     updateGarage: builder.mutation<any, { id: number; body: GaragePayload }>({
       query: ({ id, body }) => ({
@@ -194,6 +212,7 @@ export const {
   useInitiateEsewaPaymentMutation,
   useVerifyEsewaPaymentMutation,
   useGetBookingsHistoryQuery,
-  useGetOwnerAnalyticsQuery
+  useGetOwnerAnalyticsQuery,
+  useLazyAiSearchGaragesQuery
 } = apiSlice
 

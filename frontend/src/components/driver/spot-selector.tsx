@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { RootState } from "@/store/store"
-import { X, Car, Zap, Truck, Banknote, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
+import { X, Car, Zap, Truck, Bike, Banknote, MapPin, Landmark, ArrowRight, Loader2 } from "lucide-react"
 import { GarageSearchDto, ParkingSpotDto, useReserveSpotMutation } from "@/store/apiSlice"
 import { useAuth } from "@clerk/nextjs"
 
@@ -155,6 +155,12 @@ export default function SpotSelector({
               </span>
               <span>Available SUV</span>
             </div>
+            <div className="flex items-center gap-1.5 text-amber-500">
+              <span className="w-3.5 h-3.5 bg-amber-500/10 border border-amber-500 inline-flex items-center justify-center">
+                <Bike className="h-2.5 w-2.5" />
+              </span>
+              <span>Available Bike</span>
+            </div>
             <div className="flex items-center gap-1.5 text-muted-foreground/60">
               <span className="w-3.5 h-3.5 bg-muted-foreground/10 border border-muted-foreground/20 text-muted-foreground/30 inline-flex items-center justify-center select-none text-[8px] leading-none">
                 x
@@ -187,6 +193,9 @@ export default function SpotSelector({
                       } else if (spot.vehicleType === "SUV") {
                         spotStyles = "bg-blue-500/5 border-blue-500/30 hover:bg-blue-500/10 text-blue-600 hover:border-blue-500 cursor-pointer"
                         icon = <Truck className="h-3.5 w-3.5" />
+                      } else if (spot.vehicleType === "BIKE") {
+                        spotStyles = "bg-amber-500/5 border-amber-500/30 hover:bg-amber-500/10 text-amber-600 hover:border-amber-500 cursor-pointer"
+                        icon = <Bike className="h-3.5 w-3.5" />
                       } else {
                         spotStyles = "bg-card border-border hover:bg-muted/80 text-foreground hover:border-foreground/40 cursor-pointer"
                         icon = <Car className="h-3.5 w-3.5" />
@@ -198,10 +207,26 @@ export default function SpotSelector({
                     } else {
                       if (isCurrentlyReservedByThisDriver) {
                         spotStyles = "bg-primary/10 border-primary text-primary hover:bg-primary/15 cursor-pointer font-black shadow-[0_0_0_2px_var(--primary)]"
-                        icon = <Car className="h-3.5 w-3.5 text-primary" />
+                        if (spot.vehicleType === "BIKE") {
+                          icon = <Bike className="h-3.5 w-3.5 text-primary" />
+                        } else if (spot.vehicleType === "EV") {
+                          icon = <Zap className="h-3.5 w-3.5 text-primary" />
+                        } else if (spot.vehicleType === "SUV") {
+                          icon = <Truck className="h-3.5 w-3.5 text-primary" />
+                        } else {
+                          icon = <Car className="h-3.5 w-3.5 text-primary" />
+                        }
                       } else {
                         spotStyles = "bg-muted-foreground/5 border-border text-muted-foreground/30 opacity-30 select-none cursor-pointer"
-                        icon = <Car className="h-3.5 w-3.5 opacity-20" />
+                        if (spot.vehicleType === "BIKE") {
+                          icon = <Bike className="h-3.5 w-3.5 opacity-20" />
+                        } else if (spot.vehicleType === "EV") {
+                          icon = <Zap className="h-3.5 w-3.5 opacity-20" />
+                        } else if (spot.vehicleType === "SUV") {
+                          icon = <Truck className="h-3.5 w-3.5 opacity-20" />
+                        } else {
+                          icon = <Car className="h-3.5 w-3.5 opacity-20" />
+                        }
                         if (isSpotSelected) {
                           spotStyles = "bg-muted-foreground/10 border-primary text-muted-foreground/40 cursor-pointer shadow-[0_0_0_2px_var(--primary)]"
                         }

@@ -4,10 +4,11 @@ import { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle } from "lucide-react"
+import { ArrowLeft, Clock, CreditCard, Loader2, CheckCircle, Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import SearchSidebar from "@/components/driver/search-sidebar"
 import SpotSelector from "@/components/driver/spot-selector"
+import AIAssistant from "@/components/driver/ai-assistant"
 import { useSearchGaragesQuery, GarageSearchDto, useInitiateEsewaPaymentMutation, useVerifyEsewaPaymentMutation, useGetActiveBookingQuery } from "@/store/apiSlice"
 import { UserButton, useAuth } from "@clerk/nextjs"
 import { useDispatch, useSelector } from "react-redux"
@@ -101,9 +102,11 @@ function SearchPageContent() {
   }, [endTimeLocal])
 
   // Filters & Sorting state
-  const [filterVehicle, setFilterVehicle] = useState<"STANDARD" | "EV" | "SUV" | "ALL">("ALL")
+  const [filterVehicle, setFilterVehicle] = useState<"STANDARD" | "EV" | "SUV" | "BIKE" | "ALL">("ALL")
   const [sortBy, setSortBy] = useState<"PRICE" | "DISTANCE" | "SPOTS">("DISTANCE")
   const [selectedGarageId, setSelectedGarageId] = useState<number | null>(null)
+  const [isAiOpen, setIsAiOpen] = useState(false)
+  const [aiSelectedGarage, setAiSelectedGarage] = useState<GarageSearchDto | null>(null)
 
   // Fetch garages nearby based on search center and radius
   const { data: rawGarages = [], isLoading, refetch: refetchGarages } = useSearchGaragesQuery({
@@ -263,12 +266,18 @@ function SearchPageContent() {
   }, [rawGarages, filterVehicle, sortBy, center])
 
   const selectedGarage = useMemo(() => {
-    return processedGarages.find((g) => g.id === selectedGarageId) || null
-  }, [processedGarages, selectedGarageId])
+    return processedGarages.find((g) => g.id === selectedGarageId) || aiSelectedGarage || null
+  }, [processedGarages, selectedGarageId, aiSelectedGarage])
 
   const handleSelectGarage = (garage: GarageSearchDto) => {
     setSelectedGarageId(garage.id)
-    setCenter({ lat: garage.latitude, lng: garage.longitude })
+    setAiSelectedGarage(null)
+  }
+
+  const handleAiNavigate = (garage: GarageSearchDto) => {
+    setAiSelectedGarage(garage)
+    setSelectedGarageId(garage.id)
+    setIsAiOpen(false)
   }
 
   const handleConfirmPayment = async (customBookingIds?: string) => {
@@ -414,11 +423,13 @@ function SearchPageContent() {
           onLocationSelected={(lat, lng) => {
             setCenter({ lat, lng })
             setSelectedGarageId(null)
+            setAiSelectedGarage(null)
           }}
           radius={radius}
           onRadiusChange={(val) => {
             setRadius(val)
             setSelectedGarageId(null)
+            setAiSelectedGarage(null)
           }}
           selectedGarageId={selectedGarageId}
           onSelectGarage={handleSelectGarage}
@@ -442,15 +453,30 @@ function SearchPageContent() {
             onMapClick={(lat, lng) => {
               setCenter({ lat, lng })
               setSelectedGarageId(null)
+              setAiSelectedGarage(null)
             }}
           />
+
+          {/* AI Search Assistant Trigger Button */}
+          {!isAiOpen && (
+            <button
+              onClick={() => setIsAiOpen(true)}
+              className="absolute bottom-6 right-6 z-[10] group flex items-center gap-2 px-5 py-3.5 bg-background/80 hover:bg-primary/95 text-foreground hover:text-primary-foreground backdrop-blur-md border border-border/80 shadow-lg hover:shadow-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer rounded-full"
+            >
+              <Sparkles className="h-4 w-4 text-primary group-hover:text-primary-foreground animate-pulse" />
+              <span>AI Spot Finder</span>
+            </button>
+          )}
         </div>
 
         {/* Spot Selector Slide-over Drawer */}
         {selectedGarage && (
           <SpotSelector
             garage={selectedGarage}
-            onClose={() => setSelectedGarageId(null)}
+            onClose={() => {
+              setSelectedGarageId(null)
+              setAiSelectedGarage(null)
+            }}
             startTime={startTimeUtc}
             endTime={endTimeUtc}
             onReserve={(res) => {
@@ -469,8 +495,19 @@ function SearchPageContent() {
             onPay={async (bookingId) => {
               // Close drawers and proceed to checkout redirect
               setSelectedGarageId(null)
+              setAiSelectedGarage(null)
               await handleConfirmPayment(String(bookingId))
             }}
+          />
+        )}
+
+        {/* AI Assistant Chat Drawer */}
+        {isAiOpen && (
+          <AIAssistant
+            onClose={() => setIsAiOpen(false)}
+            onNavigateToGarage={handleAiNavigate}
+            center={center}
+            onCenterChange={(lat, lng) => setCenter({ lat, lng })}
           />
         )}
       </div>
