@@ -357,10 +357,10 @@ function SearchPageContent() {
           // Find earliest expiration reservation (minimum secondsRemaining)
           const sorted = [...activeReservations].sort((a, b) => a.secondsRemaining - b.secondsRemaining);
           const earliestRes = sorted[0];
-          
+
           // Get comma-separated list of booking IDs
           const allBookingIds = activeReservations.map(r => r.bookingId).join(",");
-          
+
           // Resolve spot numbers
           const spotNumbers = activeReservations.map(r => {
             for (const g of rawGarages) {
@@ -371,10 +371,10 @@ function SearchPageContent() {
           }).join(", ");
 
           // Calculate total base amount by matching booking records
-          const totalAmount = activeBookingDb && Array.isArray(activeBookingDb) 
+          const totalAmount = activeBookingDb && Array.isArray(activeBookingDb)
             ? activeBookingDb
-                .filter(b => b.status === "PENDING_PAYMENT" && activeReservations.some(r => r.bookingId === String(b.id)))
-                .reduce((sum, b) => sum + b.baseAmount, 0)
+              .filter(b => b.status === "PENDING_PAYMENT" && activeReservations.some(r => r.bookingId === String(b.id)))
+              .reduce((sum, b) => sum + b.baseAmount, 0)
             : activeReservations.length * 10; // fallback if db is loading
 
           return (
@@ -384,17 +384,22 @@ function SearchPageContent() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500/30 opacity-75"></span>
                   <Clock className="h-3.5 w-3.5 relative" />
                 </div>
-                <span className="text-amber-900 dark:text-amber-300 text-[11px] font-semibold">
-                  Pending Reservations: Spots <span className="font-mono bg-amber-500/20 dark:bg-amber-500/30 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">{spotNumbers}</span> are held. Must pay before <span className="font-extrabold text-amber-950 dark:text-amber-100">{new Date(earliestRes.expiresAt.endsWith('Z') ? earliestRes.expiresAt : earliestRes.expiresAt + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>.
-                  <span className="mx-2 text-amber-500/30 font-light">|</span>
-                  Total: <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalAmount} NPR</span>
-                  <span className="mx-2 text-amber-500/30 font-light">|</span>
-                  Time remaining:{" "}
-                  <span className="font-mono bg-amber-500 text-white dark:bg-amber-600 dark:text-white px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm inline-block animate-pulse">
-                    {Math.floor(earliestRes.secondsRemaining / 60)}:
-                    {String(earliestRes.secondsRemaining % 60).padStart(2, "0")}
-                  </span>
-                </span>
+                <div className="text-amber-900 dark:text-amber-300 text-[11px] font-semibold space-y-1">
+                  <div>
+                    Pending Reservations: Spots <span className="font-mono bg-amber-500/20 dark:bg-amber-500/30 text-amber-950 dark:text-amber-200 px-1.5 py-0.5 rounded font-black">{spotNumbers}</span> are held. Must pay before <span className="font-extrabold text-amber-950 dark:text-amber-100">{new Date(earliestRes.expiresAt.endsWith('Z') ? earliestRes.expiresAt : earliestRes.expiresAt + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>.
+                    <span className="mx-2 text-amber-500/30 font-light">|</span>
+                    Total: <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalAmount} NPR</span>
+                    <span className="mx-2 text-amber-500/30 font-light">|</span>
+                    Time remaining:{" "}
+                    <span className="font-mono bg-amber-500 text-white dark:bg-amber-600 dark:text-white px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm inline-block animate-pulse">
+                      {Math.floor(earliestRes.secondsRemaining / 60)}:
+                      {String(earliestRes.secondsRemaining % 60).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-amber-800/80 dark:text-amber-400/80 font-normal">
+                    <span className="font-bold">Test Credentials:</span> eSewa ID: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">9806800003</code> | MPIN: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">Nepal@123</code> | OTP: <code className="bg-amber-500/20 dark:bg-amber-500/30 px-1 py-0.5 rounded font-mono text-[9px]">123456</code>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => handleConfirmPayment(allBookingIds)}
