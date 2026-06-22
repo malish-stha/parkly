@@ -42,3 +42,7 @@ esewa:
 app:
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
