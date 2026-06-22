@@ -135,8 +135,32 @@ export const apiSlice = createApi({
         method: "GET",
       }),
     }),
+    getOwnerAnalytics: builder.query<OwnerAnalyticsDto, void>({
+      query: () => ({
+        url: "/owner/analytics",
+        method: "GET",
+      }),
+    }),
   }),
 })
+
+export interface GarageStatsDto {
+  garageId: number;
+  garageName: string;
+  garageAddress: string;
+  totalSpots: number;
+  ratePerHour: number;
+  earnings: number;
+  bookingsCount: number;
+}
+
+export interface OwnerAnalyticsDto {
+  totalGarages: number;
+  totalEarnings: number;
+  totalBookings: number;
+  garageBreakdown: GarageStatsDto[];
+  recentBookings: BookingHistoryDto[];
+}
 
 export const {
   useCreateGarageMutation,
@@ -146,5 +170,7 @@ export const {
   useGetActiveBookingQuery,
   useInitiateEsewaPaymentMutation,
   useVerifyEsewaPaymentMutation,
-  useGetBookingsHistoryQuery
+  useGetBookingsHistoryQuery,
+  useGetOwnerAnalyticsQuery
 } = apiSlice
+

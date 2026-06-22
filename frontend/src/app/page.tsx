@@ -6,9 +6,16 @@ import * as THREE from "three";
 import { gsap } from "gsap";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
+import { useGetOwnerAnalyticsQuery } from "@/store/apiSlice";
 
 export default function Home() {
+  const { isLoaded, userId } = useAuth();
+  const { data: analytics } = useGetOwnerAnalyticsQuery(undefined, {
+    skip: !isLoaded || !userId,
+  });
+  const isOwner = analytics && analytics.totalGarages > 0;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
@@ -339,18 +346,26 @@ export default function Home() {
                 </SignInButton>
               </Show>
               <Show when="signed-in">
-                <Link
+                {/* <Link
                   href="/search"
                   className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer"
                 >
                   DASHBOARD
-                </Link>
+                </Link> */}
                 <Link
                   href="/bookings"
                   className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer"
                 >
                   MY BOOKINGS
                 </Link>
+                {isOwner && (
+                  <Link
+                    href="/owner/analytics"
+                    className="bg-white/5 dark:bg-white/2 backdrop-blur-2xl border border-black/10 dark:border-white/8 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-[9px] md:text-[10px] font-black tracking-[0.2em] hover:bg-black/5 dark:hover:bg-white/5 transition text-foreground cursor-pointer"
+                  >
+                    OWNER DASHBOARD
+                  </Link>
+                )}
                 <UserButton />
               </Show>
             </div>
